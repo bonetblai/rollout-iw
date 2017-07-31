@@ -3,6 +3,7 @@
 #include <iostream>
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
+#include <boost/tokenizer.hpp>
 #include <ale_interface.hpp>
 
 #include "planner.h"
@@ -38,11 +39,15 @@ pair<float, size_t> run_trial(ALEInterface &env, const Planner &planner, size_t 
         // if empty branch, get branch
         if( branch.empty() ) {
             node = planner.get_branch(env, prefix, node, last_reward, branch);
-            assert(!branch.empty());
-            cout << "branch: len=" << branch.size() << ", actions=[";
-            for( size_t j = 0; j < branch.size(); ++j )
-                cout << branch[j] << ",";
-            cout << "]" << endl;
+            if( branch.empty() ) {
+                cout << Utils::error() << "no more available actions!" << endl;
+                break;
+            } else {
+                cout << "branch: len=" << branch.size() << ", actions=[";
+                for( size_t j = 0; j < branch.size(); ++j )
+                    cout << branch[j] << ",";
+                cout << "]" << endl;
+            }
         }
 
         // select action to apply
@@ -51,7 +56,7 @@ pair<float, size_t> run_trial(ALEInterface &env, const Planner &planner, size_t 
 
         // apply action
         last_reward = env.act(action);
-        node = node->advance(action);
+        if( node != nullptr ) node = node->advance(action);
         prefix.push_back(action);
         total_reward += last_reward;
 
@@ -60,6 +65,12 @@ pair<float, size_t> run_trial(ALEInterface &env, const Planner &planner, size_t 
             branch.clear();
     }
     return make_pair(total_reward, step);
+}
+
+void parse_action_sequence(const string &action_sequence, vector<Action> &actions) {
+    boost::tokenizer<> tok(action_sequence);
+    for( boost::tokenizer<>::iterator it = tok.begin(); it != tok.end(); ++it )
+        actions.push_back(static_cast<Action>(atoi(it->c_str())));
 }
 
 void usage(ostream &os, const po::options_description &opt_desc) {
@@ -87,6 +98,7 @@ int main(int argc, char **argv) {
     int num_episodes;
     int max_execution_length;
     int num_steps_for_background_image;
+    string action_sequence;
     string atari_rom;
 
     // declare supported options
@@ -108,6 +120,7 @@ int main(int argc, char **argv) {
       ("num-episodes", po::value<int>(&num_episodes)->default_value(1), "set number of episodes (default is 1)")
       ("max-length", po::value<int>(&max_execution_length), "set max number of steps in single execution (default is 18k / frameskip)")
       ("steps-background-image", po::value<int>(&num_steps_for_background_image)->default_value(18000), "set number of random steps to compute background image (default is 18k)")
+      ("action-sequence", po::value<string>(&action_sequence), "pass fixed action sequence that provides actions (default is \"\" for no such sequence")
       ("rom", po::value<string>(&atari_rom), "set Atari ROM")
     ;
 
@@ -183,22 +196,30 @@ int main(int argc, char **argv) {
     }
 
     // construct planner
-    size_t num_tracked_atoms = 0;
-    if( screen_features == 0 ) { // RAM mode
-        num_tracked_atoms = 128 * 256; // this is for RAM: 128 8-bit entries
+    Planner *planner = nullptr;
+    if( action_sequence == "" ) {
+        size_t num_tracked_atoms = 0;
+        if( screen_features == 0 ) { // RAM mode
+            num_tracked_atoms = 128 * 256; // this is for RAM: 128 8-bit entries
+        } else {
+            num_tracked_atoms = 16 * 14 * 128; // 28,672
+            num_tracked_atoms += screen_features > 1 ? 6856768 : 0;
+            num_tracked_atoms += screen_features > 2 ? 13713408 : 0;
+        }
+        planner = new RolloutIWPlanner(sim, screen_features, num_tracked_atoms, max_depth, max_rep, discount, alpha, debug);
     } else {
-        num_tracked_atoms = 16 * 14 * 128; // 28,672
-        num_tracked_atoms += screen_features > 1 ? 6856768 : 0;
-        num_tracked_atoms += screen_features > 2 ? 13713408 : 0;
+        vector<Action> actions;
+        parse_action_sequence(action_sequence, actions);
+        planner = new FixedPlanner(actions);
     }
-    RolloutIWPlanner planner(sim, screen_features, num_tracked_atoms, max_depth, max_rep, discount, alpha, debug);
-    cout << "planner=" << planner.name() << endl;
+    assert(planner != nullptr);
+    cout << "planner=" << planner->name() << endl;
 
     // play
     for( size_t k = 0; k < num_episodes; ++k ) {
         vector<Action> prefix;
         float start_time = Utils::read_time_in_seconds();
-        pair<float, size_t> p = run_trial(env, planner, max_execution_length, prefix);
+        pair<float, size_t> p = run_trial(env, *planner, max_execution_length, prefix);
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
         cout << "stats:"
              << "  score=" << p.first

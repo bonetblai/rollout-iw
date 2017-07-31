@@ -3,6 +3,7 @@
 #ifndef PLANNER_H
 #define PLANNER_H
 
+#include <deque>
 #include <string>
 #include <vector>
 #include <ale_interface.hpp>
@@ -44,6 +45,42 @@ struct RandomPlanner : Planner {
                              std::deque<Action> &branch) const {
         assert(branch.empty());
         branch.push_back(random_action());
+        return nullptr;
+    }
+};
+
+struct FixedPlanner : public Planner {
+    mutable std::deque<Action> actions_;
+
+    FixedPlanner(const std::vector<Action> &actions) {
+        actions_ = std::deque<Action>(actions.begin(), actions.end());
+    }
+
+    Action pop_first_action() const {
+        Action action = actions_.front();
+        actions_.pop_front();
+        return action;
+    }
+
+    virtual std::string name() const {
+        return std::string("fixed(sz=") + std::to_string(actions_.size()) + ")";
+    }
+
+    virtual Action random_action() const {
+        assert(!actions_.empty());
+        return pop_first_action();
+    }
+
+    virtual Node* get_branch(ALEInterface &env,
+                             const std::vector<Action> &prefix,
+                             Node *root,
+                             float last_reward,
+                             std::deque<Action> &branch) const {
+        assert(branch.empty());
+        if( !actions_.empty() ) {
+            Action action = pop_first_action();
+            branch.push_back(action);
+        }
         return nullptr;
     }
 };

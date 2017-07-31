@@ -24,7 +24,8 @@ ActionVect MyALEScreen::minimal_actions_;
 size_t MyALEScreen::minimal_actions_size_;
 
 
-pair<float, size_t> run_trial(ALEInterface &env, const Planner &planner, size_t max_execution_length, vector<Action> &prefix) {
+pair<float, pair<size_t, size_t> >
+run_trial(ALEInterface &env, const Planner &planner, bool execute_single_action, size_t frameskip, size_t max_execution_length_in_frames, vector<Action> &prefix) {
     assert(prefix.empty());
 
     env.reset_game();
@@ -32,12 +33,13 @@ pair<float, size_t> run_trial(ALEInterface &env, const Planner &planner, size_t 
     prefix.push_back(planner.random_action());
     Node *node = nullptr;
 
-    size_t step = 0;
+    size_t decision = 0, frame = 0;
     float last_reward = env.act(prefix.back());
     float total_reward = last_reward;
-    for( ; !env.game_over() && (step < max_execution_length); ++step ) {
+    for( ; !env.game_over() && (frame < max_execution_length_in_frames); frame += frameskip ) {
         // if empty branch, get branch
         if( branch.empty() ) {
+            ++decision;
             node = planner.get_branch(env, prefix, node, last_reward, branch);
             if( branch.empty() ) {
                 cout << Utils::error() << "no more available actions!" << endl;
@@ -61,10 +63,10 @@ pair<float, size_t> run_trial(ALEInterface &env, const Planner &planner, size_t 
         total_reward += last_reward;
 
         // prune branch if got positive reward
-        if( last_reward > 0 )
+        if( execute_single_action || (last_reward > 0) )
             branch.clear();
     }
-    return make_pair(total_reward, step);
+    return make_pair(total_reward, make_pair(decision, frame));
 }
 
 void parse_action_sequence(const string &action_sequence, vector<Action> &actions) {
@@ -90,15 +92,18 @@ int main(int argc, char **argv) {
     string rec_dir;
     string rec_sound_filename;
     int screen_features;
+    bool feature_stratification = true;
     int max_depth;
     int max_rep;
     float discount;
     float alpha;
     bool debug = false;
     int num_episodes;
-    int max_execution_length;
-    int num_steps_for_background_image;
+    int max_execution_length_in_frames;
+    int num_frames_for_background_image;
     string action_sequence;
+    bool execute_single_action = false;
+    float budget_secs_per_decision;
     string atari_rom;
 
     // declare supported options
@@ -112,15 +117,18 @@ int main(int argc, char **argv) {
       ("rec-dir", po::value<string>(&rec_dir), "set folder for recording (default is \"\" for no recording)")
       ("rec-sound-filename", po::value<string>(&rec_sound_filename), "set filename for recording sound (default is \"\" for no recording)")
       ("features", po::value<int>(&screen_features)->default_value(0), "set feature set: 0=RAM, 1=basic, 2=basic+B-PROS, 3=basic+B-PROS+B-PROT (default is 0)")
-      ("max-depth", po::value<int>(&max_depth)->default_value(50), "set max depth for lookahead (default is 50)")
-      ("max-rep", po::value<int>(&max_rep), "set max rep(etition) of screen features during lookahead (default is 60 / frameskip")
+      ("no-feature-stratification", "turn off feature stratification (default is stratification)")
+      ("max-depth", po::value<int>(&max_depth)->default_value(1500), "set max depth for lookahead (default is 1500)")
+      ("max-rep", po::value<int>(&max_rep), "set max rep(etition) of screen features during lookahead (default is 30 frames")
       ("discount", po::value<float>(&discount)->default_value(1.0), "set discount factor for lookahead (default is 1.0)")
       ("alpha", po::value<float>(&alpha)->default_value(10000.0), "set alpha value for lookahead (default is 10,000)")
       ("debug", "turn on debug (default is off)")
       ("num-episodes", po::value<int>(&num_episodes)->default_value(1), "set number of episodes (default is 1)")
-      ("max-length", po::value<int>(&max_execution_length), "set max number of steps in single execution (default is 18k / frameskip)")
-      ("steps-background-image", po::value<int>(&num_steps_for_background_image)->default_value(18000), "set number of random steps to compute background image (default is 18k)")
+      ("max-length", po::value<int>(&max_execution_length_in_frames)->default_value(18000), "set max number of frames in single execution (default is 18k frames)")
+      ("frames-background-image", po::value<int>(&num_frames_for_background_image)->default_value(100), "set number of random frames to compute background image (default is 100 frames)")
       ("action-sequence", po::value<string>(&action_sequence), "pass fixed action sequence that provides actions (default is \"\" for no such sequence")
+      ("budget-secs-per-decision", po::value<float>(&budget_secs_per_decision)->default_value(numeric_limits<float>::max()), "set budget time per decision in seconds (default is infinite)")
+      ("execute-single-action", "execute only one action from best branch in lookahead (default is to execute prefix until first reward")
       ("rom", po::value<string>(&atari_rom), "set Atari ROM")
     ;
 
@@ -142,12 +150,14 @@ int main(int argc, char **argv) {
         no_display = true;
     if( opt_varmap.count("sound") )
         sound = true;
+    if( opt_varmap.count("no-feature-stratification") )
+        feature_stratification = false;
     if( opt_varmap.count("debug") )
         debug = true;
-    if( !opt_varmap.count("max-length") )
-        max_execution_length = 18000 / frameskip;
     if( !opt_varmap.count("max-rep") )
         max_rep = 60 / frameskip;
+    if( !opt_varmap.count("execute-single-action") )
+        execute_single_action = true;
 
     // check whether there is something to be done
     if( opt_varmap.count("help") || (atari_rom == "") ) {
@@ -192,7 +202,7 @@ int main(int argc, char **argv) {
     // initialize static members for screen features
     if( screen_features > 0 ) {
         MyALEScreen::create_background_image();
-        MyALEScreen::compute_background_image(sim, num_steps_for_background_image, true);
+        MyALEScreen::compute_background_image(sim, num_frames_for_background_image, true);
     }
 
     // construct planner
@@ -206,7 +216,17 @@ int main(int argc, char **argv) {
             num_tracked_atoms += screen_features > 1 ? 6856768 : 0;
             num_tracked_atoms += screen_features > 2 ? 13713408 : 0;
         }
-        planner = new RolloutIWPlanner(sim, screen_features, num_tracked_atoms, max_depth, max_rep, discount, alpha, debug);
+        planner = new RolloutIWPlanner(sim,
+                                       frameskip,
+                                       budget_secs_per_decision,
+                                       screen_features,
+                                       feature_stratification,
+                                       num_tracked_atoms,
+                                       max_depth,
+                                       max_rep,
+                                       discount,
+                                       alpha,
+                                       debug);
     } else {
         vector<Action> actions;
         parse_action_sequence(action_sequence, actions);
@@ -219,13 +239,15 @@ int main(int argc, char **argv) {
     for( size_t k = 0; k < num_episodes; ++k ) {
         vector<Action> prefix;
         float start_time = Utils::read_time_in_seconds();
-        pair<float, size_t> p = run_trial(env, *planner, max_execution_length, prefix);
+        pair<float, pair<size_t, size_t> > p = run_trial(env, *planner, execute_single_action, frameskip, max_execution_length_in_frames, prefix);
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
         cout << "stats:"
              << "  score=" << p.first
-             << ", decisions=" << p.second
+             << ", decisions=" << p.second.first
+             << ", frames=" << p.second.second
              << ", total-time=" << elapsed_time
-             << ", avg-time=" << elapsed_time / float(p.second)
+             << ", avg-time-per-decision=" << elapsed_time / float(p.second.first)
+             << ", avg-time-per-frame=" << elapsed_time / float(p.second.second)
              << endl;
     }
     return 0;

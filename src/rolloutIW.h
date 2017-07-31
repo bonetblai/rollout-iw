@@ -21,7 +21,10 @@ struct RolloutIWPlanner : Planner {
     ActionVect minimal_actions_;
     size_t minimal_actions_size_;
 
+    const size_t frameskip_;
+    const float budget_secs_per_decision_;
     const int screen_features_type_;
+    const bool feature_stratification_;
     const size_t num_tracked_atoms_;
     const size_t max_depth_;
     const size_t max_rep_;;
@@ -43,7 +46,10 @@ struct RolloutIWPlanner : Planner {
     mutable float expand_time_;
 
     RolloutIWPlanner(ALEInterface &sim,
+                     size_t frameskip,
+                     float budget_secs_per_decision,
                      int screen_features_type,
+                     bool feature_stratification,
                      size_t num_tracked_atoms,
                      size_t max_depth,
                      size_t max_rep,
@@ -51,7 +57,10 @@ struct RolloutIWPlanner : Planner {
                      float alpha,
                      bool debug = false)
       : sim_(sim),
+        frameskip_(frameskip),
+        budget_secs_per_decision_(budget_secs_per_decision),
         screen_features_type_(screen_features_type),
+        feature_stratification_(feature_stratification),
         num_tracked_atoms_(num_tracked_atoms),
         max_depth_(max_depth),
         max_rep_(max_rep),
@@ -59,6 +68,7 @@ struct RolloutIWPlanner : Planner {
         alpha_(alpha),
         debug_(debug) {
         //static_assert(std::numeric_limits<float>::is_iec559, "IEEE 754 required");
+        assert(sim_.getInt("frame_skip") == frameskip_);
         minimal_actions_ = sim_.getMinimalActionSet();
         minimal_actions_size_ = minimal_actions_.size();
         reset_game(sim_);
@@ -67,7 +77,11 @@ struct RolloutIWPlanner : Planner {
 
     virtual std::string name() const {
         return std::string("rollout(")
-          + "max-depth=" + std::to_string(max_depth_)
+          + "frameskip=" + std::to_string(frameskip_)
+          + ",budget=" + std::to_string(budget_secs_per_decision_)
+          + ",features=" + std::to_string(screen_features_type_)
+          + ",stratification=" + std::to_string(feature_stratification_)
+          + ",max-depth=" + std::to_string(max_depth_)
           + ",max-rep=" + std::to_string(max_rep_)
           + ",discount=" + std::to_string(discount_)
           + ",alpha=" + std::to_string(alpha_)
@@ -119,7 +133,8 @@ struct RolloutIWPlanner : Planner {
         root->normalize_depth();
 
         // construct lookahead tree
-        while( !root->solved_ ) {
+        float elapsed_time = Utils::read_time_in_seconds() - start_time;
+        while( !root->solved_ && (elapsed_time < budget_secs_per_decision_) ) {
             if( debug_ ) std::cout << '.' << std::flush;
             rollout(prefix, root, max_depth_, max_rep_, alpha_, novelty_table, seen_rewards);
 #if 0
@@ -136,6 +151,7 @@ struct RolloutIWPlanner : Planner {
                 }
             }
 #endif
+            elapsed_time = Utils::read_time_in_seconds() - start_time;
         }
         if( debug_ ) std::cout << std::endl;
 
@@ -241,10 +257,15 @@ struct RolloutIWPlanner : Planner {
 
             // if first time at this node, expand node
             if( node->children_.empty() ) {
-                ++num_expansions_;
-                float start_time = Utils::read_time_in_seconds();
-                node->expand(minimal_actions_);
-                expand_time_ += Utils::read_time_in_seconds() - start_time;
+                if( node->frame_rep_ == 0 ) {
+                    ++num_expansions_;
+                    float start_time = Utils::read_time_in_seconds();
+                    node->expand(minimal_actions_);
+                    expand_time_ += Utils::read_time_in_seconds() - start_time;
+                } else {
+                    assert((node->parent_ != nullptr) && (screen_features_type_ > 0));
+                    node->expand(node->action_);
+                }
                 assert(!node->children_.empty());
             }
 
@@ -278,7 +299,7 @@ struct RolloutIWPlanner : Planner {
             }
 
             // verify repetitions of feature atoms (screen mode)
-            if( node->rep_ > max_rep ) {
+            if( node->frame_rep_ > max_rep ) {
                 node->visited_ = true;
                 //node->terminal_ = true;
                 //node->reward_ = -10;
@@ -286,7 +307,7 @@ struct RolloutIWPlanner : Planner {
                 node->solve_and_backpropagate_label();
                 //std::cout << "R" << std::flush;
                 break;
-            } else if( node->rep_ > 0 ) {
+            } else if( node->frame_rep_ > 0 ) {
                 node->visited_ = true;
                 //std::cout << "r" << std::flush;
                 continue;
@@ -418,10 +439,12 @@ struct RolloutIWPlanner : Planner {
             get_atoms_from_ram(node);
         } else {
             get_atoms_from_screen(node);
-            if( (node->parent_ != nullptr) && (node->parent_->feature_atoms_ == node->feature_atoms_) )
-                node->rep_ = 1 + node->parent_->rep_;
+            if( (node->parent_ != nullptr) && (node->parent_->feature_atoms_ == node->feature_atoms_) ) {
+                node->frame_rep_ = node->parent_->frame_rep_ + frameskip_;
+                assert(node->children_.empty());
+            }
         }
-        assert((node->rep_ == 0) || (screen_features_type_ > 0));
+        assert((node->frame_rep_ == 0) || (screen_features_type_ > 0));
     }
     void get_atoms_from_ram(const Node *node) const {
         assert(node->feature_atoms_.empty());
@@ -516,13 +539,15 @@ struct RolloutIWPlanner : Planner {
 
     void get_state(ALEInterface &ale, ALEState &ale_state) const {
         float start_time = Utils::read_time_in_seconds();
-        ale_state = ale.cloneSystemState();
+        //ale_state = ale.cloneSystemState(); // CHECK
+        ale_state = ale.cloneState();
         get_set_state_time_ += Utils::read_time_in_seconds() - start_time;
     }
 
     void set_state(ALEInterface &ale, const ALEState &ale_state) const {
         float start_time = Utils::read_time_in_seconds();
-        ale.restoreSystemState(ale_state);
+        //ale.restoreSystemState(ale_state); // CHECK
+        ale.restoreState(ale_state);
         get_set_state_time_ += Utils::read_time_in_seconds() - start_time;
     }
     void set_state(ALEInterface &ale, const ALEState &ale_state, Action action) const {

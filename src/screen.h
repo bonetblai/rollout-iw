@@ -1,4 +1,8 @@
 // (c) 2017 Blai Bonet
+//
+// TODO:
+//   - feature stratification
+//   - fix memmory leak
 
 #ifndef SCREEN_H
 #define SCREEN_H
@@ -14,6 +18,7 @@
 
 struct MyALEScreen {
     const int type_; // type=0: no features, type=1: basic features, type=2: basic + B-PROS, type=3: basic + B-PROS + B-PROT
+    const bool stratification_;
     const bool debug_;
     const ALEScreen &screen_;
     std::vector<bool> basic_features_bitmap_;
@@ -40,6 +45,31 @@ struct MyALEScreen {
                 const std::vector<int> *prev_screen_state_atoms = nullptr,
                 bool debug = false)
       : type_(type),
+        stratification_(false),
+        debug_(debug),
+        screen_(ale.getScreen()) {
+
+        if( debug_ ) {
+            std::cout << "screen:"
+                      << " type=" << type_
+                      << ", height=" << screen_.height() << " (expecting " << height_ << ")"
+                      << ", width=" << screen_.width() << " (expecting " << width_ << ")"
+                      << std::endl;
+        }
+        assert((width_ == screen_.width()) && (height_ == screen_.height()));
+
+        compute_features(type, screen_state_atoms, prev_screen_state_atoms, debug);
+    }
+
+#if 0
+    MyALEScreen(ALEInterface &ale,
+                int type,
+                bool stratification = false,
+                std::vector<int> *screen_state_atoms = nullptr,
+                const std::vector<int> *prev_screen_state_atoms = nullptr,
+                bool debug = false)
+      : type_(type),
+        stratification_(stratification),
         debug_(debug),
         screen_(ale.getScreen()) {
 
@@ -82,6 +112,7 @@ struct MyALEScreen {
                       << std::endl;
         }
     }
+#endif
 
     static Action random_action() {
         return minimal_actions_[lrand48() % minimal_actions_size_];
@@ -103,7 +134,7 @@ struct MyALEScreen {
         background_ = std::vector<pixel_t>(width_ * height_, 0);
         num_background_pixels_ = width_ * height_;
     }
-    static void compute_background_image(ALEInterface &ale, size_t num_steps, bool debug = false) {
+    static void compute_background_image(ALEInterface &ale, size_t num_frames, bool debug = false) {
         assert((width_ == ale.getScreen().width()) && (height_ == ale.getScreen().height()));
         float start_time = Utils::read_time_in_seconds();
         if( debug ) std::cout << "screen: computing background image... " << std::flush;
@@ -117,7 +148,8 @@ struct MyALEScreen {
 
         reset(ale);
         fill_image(ale, reference_image);
-        for( size_t k = 0; k < num_steps; ++k ) {
+        int frameskip = ale.getInt("frame_skip");
+        for( size_t k = 0; k < num_frames; k += frameskip ) {
             if( ale.game_over() ) reset(ale);
             fill_image(ale, image);
             for( size_t c = 0; c < width_; ++c ) {
@@ -164,6 +196,38 @@ struct MyALEScreen {
         return screen_;
     }
 
+    void compute_features(int type, std::vector<int> *screen_state_atoms, const std::vector<int> *prev_screen_state_atoms, bool debug = false) {
+        int num_basic_features = 0;
+        int num_bpros_features = 0;
+        int num_bprot_features = 0;
+
+        if( type_ > 0 ) {
+            basic_features_bitmap_ = std::vector<bool>(num_basic_features_, false);
+            compute_basic_features(screen_state_atoms);
+            num_basic_features = screen_state_atoms->size();
+            if( (type_ > 1) && (screen_state_atoms != nullptr) ) {
+                std::vector<int> basic_features(*screen_state_atoms);
+                bpros_features_bitmap_ = std::vector<bool>(num_bpros_features_, false);
+                compute_bpros_features(basic_features, *screen_state_atoms);
+                num_bpros_features = screen_state_atoms->size() - num_basic_features;
+                if( (type_ > 2) && (prev_screen_state_atoms != nullptr) ) {
+                    bprot_features_bitmap_ = std::vector<bool>(num_bprot_features_, false);
+                    compute_bprot_features(basic_features, *screen_state_atoms, *prev_screen_state_atoms);
+                    num_bprot_features = screen_state_atoms->size() - num_basic_features - num_bpros_features;
+                }
+            }
+        }
+
+        if( debug_ ) {
+            std::cout << "screen:"
+                      << " #features=" << screen_state_atoms->size()
+                      << ", #basic=" << num_basic_features
+                      << ", #bpros=" << num_bpros_features
+                      << ", #bprot=" << num_bprot_features
+                      << std::endl;
+        }
+    }
+
     void compute_basic_features(size_t c, size_t r, std::vector<int> *screen_state_atoms = 0) {
         assert((c < 16) && (r < 14));
         for( size_t ic = 0; ic < 10; ++ic ) {
@@ -174,7 +238,7 @@ struct MyALEScreen {
 
                 // subtract/ammend background pixel
                 if( p < b )
-                    ammend_background_image(15*r + ir, 10*c + ic, true);
+                    ammend_background_image(15*r + ir, 10*c + ic, false);
                 else
                     p -= b;
 

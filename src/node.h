@@ -30,7 +30,7 @@ class Node {
 
     mutable ALEState *state_;                // state for this node
     mutable std::vector<int> feature_atoms_; // features made true by this node
-    mutable int rep_;                        // counter for number identical feature atoms through ancestors
+    mutable int frame_rep_;                  // frame counter for number identical feature atoms through ancestors
 
     Node(Node *parent, Action action, size_t depth)
       : visited_(false),
@@ -45,7 +45,7 @@ class Node {
         value_(0),
         ale_lives_(-1),
         state_(nullptr),
-        rep_(0) {
+        frame_rep_(0) {
     }
 
     void remove_children() {
@@ -55,10 +55,14 @@ class Node {
         }
     }
 
+    void expand(Action action) {
+        children_.push_back(new Node(this, action, 1 + depth_));
+    }
     void expand(const ActionVect &actions) {
         assert(children_.empty());
         for( size_t k = 0; k < actions.size(); ++k )
-            children_.push_back(new Node(this, actions[k], 1 + depth_));
+            expand(actions[k]);
+        assert(children_.size() == actions.size());
     }
 
     const Node* advance(Action action) const {

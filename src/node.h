@@ -65,15 +65,25 @@ class Node {
         assert(children_.size() == actions.size());
     }
 
-    const Node* advance(Action action) const {
+    Node* advance(Action action) {
+        assert((parent_ == nullptr) || (parent_->parent_ == nullptr));
+        if( parent_ != nullptr ) {
+            delete parent_;
+            parent_ = nullptr;
+        }
+
+        Node *child = nullptr;
         for( size_t k = 0; k < children_.size(); ++k ) {
             if( children_[k]->action_ == action )
-                return children_[k];
+                child = children_[k];
+            else
+                remove_tree(children_[k]);
         }
-        assert(0);
-    }
-    Node* advance(Action action) {
-        return const_cast<Node*>(const_cast<const Node*>(this)->advance(action));
+        assert(child != nullptr);
+
+        children_.clear();
+        children_.push_back(child);
+        return child;
     }
 
     void clear_solved_labels() {

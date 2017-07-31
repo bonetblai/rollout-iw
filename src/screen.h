@@ -2,7 +2,6 @@
 //
 // TODO:
 //   - feature stratification
-//   - fix memmory leak
 
 #ifndef SCREEN_H
 #define SCREEN_H

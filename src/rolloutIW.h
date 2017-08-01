@@ -17,6 +17,7 @@
 
 struct RolloutIWPlanner : Planner {
     ALEInterface &sim_;
+    std::ostream &logos_;
     ALEState initial_sim_state_;
     ActionVect minimal_actions_;
     size_t minimal_actions_size_;
@@ -46,6 +47,7 @@ struct RolloutIWPlanner : Planner {
     mutable float expand_time_;
 
     RolloutIWPlanner(ALEInterface &sim,
+                     std::ostream &logos,
                      size_t frameskip,
                      float budget_secs_per_decision,
                      int screen_features_type,
@@ -57,6 +59,7 @@ struct RolloutIWPlanner : Planner {
                      float alpha,
                      bool debug = false)
       : sim_(sim),
+        logos_(logos),
         frameskip_(frameskip),
         budget_secs_per_decision_(budget_secs_per_decision),
         screen_features_type_(screen_features_type),
@@ -99,14 +102,14 @@ struct RolloutIWPlanner : Planner {
                              float last_reward,
                              std::deque<Action> &branch) const {
         assert(!prefix.empty());
-        std::cout << "**** get branch ****" << std::endl;
-        std::cout << "prefix: sz=" << prefix.size() << ", actions=";
-        print_prefix(std::cout, prefix);
-        std::cout << std::endl;
-        std::cout << "input:"
-                  << " #nodes=" << (root == nullptr ? 0 : root->num_nodes())
-                  << ", height=" << (root == nullptr ? "na" : std::to_string(root->height_))
-                  << std::endl;
+        logos_ << "**** get branch ****" << std::endl;
+        logos_ << "prefix: sz=" << prefix.size() << ", actions=";
+        print_prefix(logos_, prefix);
+        logos_ << std::endl;
+        logos_ << "input:"
+               << " #nodes=" << (root == nullptr ? 0 : root->num_nodes())
+               << ", height=" << (root == nullptr ? "na" : std::to_string(root->height_))
+               << std::endl;
 
         // reset stats and start timer
         reset_stats();
@@ -127,33 +130,39 @@ struct RolloutIWPlanner : Planner {
         assert(root->parent_ != nullptr);
         root->parent_->parent_ = nullptr;
 
-        // clear solved labels and normalize depths
-        root->clear_solved_labels();
-        root->parent_->solved_ = false;
+        // normalize depths
         root->normalize_depth();
 
         // construct lookahead tree
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
-        while( !root->solved_ && (elapsed_time < budget_secs_per_decision_) ) {
-            if( debug_ ) std::cout << '.' << std::flush;
-            rollout(prefix, root, max_depth_, max_rep_, alpha_, novelty_table, seen_rewards);
+        int first_level = feature_stratification_ && (screen_features_type_ > 0) ? 1 : screen_features_type_;
+        for( int level = first_level; level <= screen_features_type_; ++level ) {
+            if( debug_ ) logos_ << "layer: level=" << level << ", rollouts=" << std::flush;
+
+            // clear solved labels and normalize depths
+            root->clear_solved_labels();
+            root->parent_->solved_ = false;
+            while( !root->solved_ && (elapsed_time < budget_secs_per_decision_) ) {
+                if( debug_ ) logos_ << '.' << std::flush;
+                rollout(prefix, root, level, max_depth_, max_rep_, alpha_, novelty_table, seen_rewards);
 #if 0
-            if( seen_rewards.first && !seen_rewards.second ) {
-                root->backup_values(discount_);
-                assert(root->value_ > 0);
-                const Node *tip_node = root->best_tip_node(discount_);
-                bool good_tip = do_random_lookahead_below_node(tip_node, 35, 50);
-                if( good_tip ) {
-                    std::cout << "%" << std::flush;
-                    break;
-                } else {
-                    const_cast<Node*>(tip_node)->reward_ = -alpha_;
+                if( seen_rewards.first && !seen_rewards.second ) {
+                    root->backup_values(discount_);
+                    assert(root->value_ > 0);
+                    const Node *tip_node = root->best_tip_node(discount_);
+                    bool good_tip = do_random_lookahead_below_node(tip_node, 35, 50);
+                    if( good_tip ) {
+                        logos_ << "%" << std::flush;
+                        break;
+                    } else {
+                        const_cast<Node*>(tip_node)->reward_ = -alpha_;
+                    }
                 }
-            }
 #endif
-            elapsed_time = Utils::read_time_in_seconds() - start_time;
+                elapsed_time = Utils::read_time_in_seconds() - start_time;
+            }
+            if( debug_ ) logos_ << std::endl;
         }
-        if( debug_ ) std::cout << std::endl;
 
         // backup values and calculate heights
         assert(!root->children_.empty());
@@ -163,15 +172,15 @@ struct RolloutIWPlanner : Planner {
 
         // print info about root node
         if( true || debug_ ) {
-            std::cout << Utils::green()
-                      << "root:"
-                      << " solved=" << root->solved_
-                      << ", value=" << root->value_
-                      << ", imm-reward=" << root->reward_
-                      << ", children=[";
+            logos_ << Utils::green()
+                   << "root:"
+                   << " solved=" << root->solved_
+                   << ", value=" << root->value_
+                   << ", imm-reward=" << root->reward_
+                   << ", children=[";
             for( size_t k = 0; k < root->children_.size(); ++k )
-                std::cout << root->children_[k]->value_ << ":" << root->children_[k]->action_ << " ";
-            std::cout << "]" << Utils::normal() << std::endl;
+                logos_ << root->children_[k]->value_ << ":" << root->children_[k]->action_ << " ";
+            logos_ << "]" << Utils::normal() << std::endl;
         }
 
         // compute branch
@@ -183,10 +192,10 @@ struct RolloutIWPlanner : Planner {
                 float branch_value_before_tip_lookahead = root->value_;
                 //do_lookahead_at_branch_tip(root, sim_state, branch, 10);
                 float branch_value_after_tip_lookahead = root->backup_values_along_branch(branch, discount_);
-                std::cout << "values: branch-before=" << branch_value_before_tip_lookahead
-                          << ", branch-after=" << branch_value_after_tip_lookahead
-                          << ", root=" << root->value_
-                          << std::endl;
+                logos_ << "values: branch-before=" << branch_value_before_tip_lookahead
+                       << ", branch-after=" << branch_value_after_tip_lookahead
+                       << ", root=" << root->value_
+                       << std::endl;
                 assert(root->value_ >= branch_value_after_tip_lookahead);
                 if( (branch_value_after_tip_lookahead > 0) || (root->value_ <= 0) ) {
                     if( branch_value_after_tip_lookahead > 0 ) {
@@ -216,18 +225,18 @@ struct RolloutIWPlanner : Planner {
         }
         assert(!branch.empty());
         if( true || debug_ ) {
-            std::cout << "branch:"
-                      << " value=" << root->value_
-                      << ", size=" << branch.size()
-                      << ", actions:"
-                      << std::endl;
-            root->print_branch(std::cout, branch);
+            logos_ << "branch:"
+                   << " value=" << root->value_
+                   << ", size=" << branch.size()
+                   << ", actions:"
+                   << std::endl;
+            root->print_branch(logos_, branch);
         }
 
         // stop timer and print stats
         total_time_ = Utils::read_time_in_seconds() - start_time;
         if( true || debug_ )
-            print_stats(std::cout, *root, novelty_table);
+            print_stats(logos_, *root, novelty_table);
 
         // return root node
         return root;
@@ -235,6 +244,7 @@ struct RolloutIWPlanner : Planner {
 
     void rollout(const std::vector<Action> &prefix,
                  Node *root,
+                 int screen_features_level,
                  size_t max_depth,
                  size_t max_rep,
                  float alpha,
@@ -248,7 +258,7 @@ struct RolloutIWPlanner : Planner {
 
         // update root info
         if( !root->is_info_valid_ )
-            update_info(root, alpha);
+            update_info(root, screen_features_level, alpha);
 
         // perform rollout
         Node *node = root;
@@ -263,7 +273,7 @@ struct RolloutIWPlanner : Planner {
                     node->expand(minimal_actions_);
                     expand_time_ += Utils::read_time_in_seconds() - start_time;
                 } else {
-                    assert((node->parent_ != nullptr) && (screen_features_type_ > 0));
+                    assert((node->parent_ != nullptr) && (screen_features_level > 0));
                     node->expand(node->action_);
                 }
                 assert(!node->children_.empty());
@@ -287,14 +297,14 @@ struct RolloutIWPlanner : Planner {
 
             // update info
             if( !node->is_info_valid_ )
-                update_info(node, alpha);
+                update_info(node, screen_features_level, alpha);
 
             // if terminal, label as solved and terminate rollout
             if( node->terminal_ ) {
                 node->visited_ = true;
                 assert(node->children_.empty());
                 node->solve_and_backpropagate_label();
-                //std::cout << "T[reward=" << node->reward_ << "]" << std::flush;
+                //logos_ << "T[reward=" << node->reward_ << "]" << std::flush;
                 break;
             }
 
@@ -305,21 +315,21 @@ struct RolloutIWPlanner : Planner {
                 //node->reward_ = -10;
                 assert(node->children_.empty());
                 node->solve_and_backpropagate_label();
-                //std::cout << "R" << std::flush;
+                //logos_ << "R" << std::flush;
                 break;
             } else if( node->frame_rep_ > 0 ) {
                 node->visited_ = true;
-                //std::cout << "r" << std::flush;
+                //logos_ << "r" << std::flush;
                 continue;
             }
 
             // report non-zero rewards
             if( node->reward_ > 0 ) {
                 seen_rewards.first = true;
-                //std::cout << Utils::yellow() << "+" << Utils::normal() << std::flush;
+                //logos_ << Utils::yellow() << "+" << Utils::normal() << std::flush;
             } else if( node->reward_ < 0 ) {
                 seen_rewards.second = true;
-                //std::cout << "-" << std::flush;
+                //logos_ << "-" << std::flush;
             }
 
             // calculate novelty
@@ -331,15 +341,15 @@ struct RolloutIWPlanner : Planner {
                 node->visited_ = true;
                 assert(node->children_.empty());
                 node->solve_and_backpropagate_label();
-                //std::cout << "D" << std::flush;
+                //logos_ << "D" << std::flush;
                 break;
             } else if( novelty_table[atom] > node->depth_ ) { // novel => not(visited)
                 //assert(!node->visited_);
                 if( !node->visited_ ) {
                     ++num_cases_[0];
                     node->visited_ = true;
-                    update_novelty_table(node->depth_, node->feature_atoms_, novelty_table);
-                    //std::cout << Utils::green() << "n" << Utils::normal() << std::flush;
+                    update_novelty_table(atom, node->depth_, node->feature_atoms_, novelty_table);
+                    //logos_ << Utils::green() << "n" << Utils::normal() << std::flush;
                 }
                 continue;
             } else if( !node->visited_ && (novelty_table[atom] <= node->depth_) ) { // not(novel) and not(visited) => PRUNE
@@ -347,25 +357,25 @@ struct RolloutIWPlanner : Planner {
                 node->visited_ = true;
                 assert(node->children_.empty());
                 node->solve_and_backpropagate_label();
-                //std::cout << "x" << node->depth_ << std::flush;
+                //logos_ << "x" << node->depth_ << std::flush;
                 break;
             } else if( node->visited_ && (novelty_table[atom] < node->depth_) ) { // not(novel) and visited => PRUNE
                 ++num_cases_[2];
                 node->remove_children();
                 node->reward_ = -std::numeric_limits<float>::infinity();
                 node->solve_and_backpropagate_label();
-                //std::cout << "X" << node->depth_ << std::flush;
+                //logos_ << "X" << node->depth_ << std::flush;
                 break;
             } else { // optimal and visited => CONTINUE
                 assert(node->visited_ && (novelty_table[atom] == node->depth_));
                 ++num_cases_[3];
-                //std::cout << "c" << std::flush;
+                //logos_ << "c" << std::flush;
                 continue;
             }
         }
     }
 
-    void update_info(Node *node, float alpha) const {
+    void update_info(Node *node, int screen_features_level, float alpha) const {
         assert(!node->is_info_valid_);
         assert(node->state_ == nullptr);
         assert((node->parent_ != nullptr) && (node->parent_->state_ != nullptr));
@@ -375,12 +385,12 @@ struct RolloutIWPlanner : Planner {
         node->state_ = new ALEState;
         get_state(sim_, *node->state_);
         if( node->reward_ < 0 ) node->reward_ *= alpha;
-        get_atoms(node);
+        get_atoms(node, screen_features_level);
         node->ale_lives_ = get_lives(sim_);
         if( (node->parent_ != nullptr) && (node->parent_->ale_lives_ != -1) ) {
             if( node->ale_lives_ < node->parent_->ale_lives_ ) {
                 node->reward_ = -10 * alpha;
-                //std::cout << "L" << std::flush;
+                //logos_ << "L" << std::flush;
             }
         }
         node->is_info_valid_ = true;
@@ -425,26 +435,26 @@ struct RolloutIWPlanner : Planner {
         std::map<std::pair<std::string, Action>, std::string> seen_transitions;
         std::vector<int> novelty_table(num_tracked_atoms_, std::numeric_limits<int>::max());
         while( !node->solved_ ) {
-            if( true || debug_ ) std::cout << '#' << std::flush;
+            if( true || debug_ ) logos_ << '#' << std::flush;
             set_state(sim_, tip_state);
             rollout(empty_prefix, node, max_depth, max_rep, alpha, novelty_table, seen_rewards, seen_transitions);
         }
-        if( true || debug_ ) std::cout << std::endl;
+        if( true || debug_ ) logos_ << std::endl;
     }
 #endif
 
-    void get_atoms(const Node *node) const {
+    void get_atoms(const Node *node, int screen_features_level) const {
         assert(node->feature_atoms_.empty());
-        if( screen_features_type_ == 0 ) { // RAM mode
+        if( screen_features_level == 0 ) { // RAM mode
             get_atoms_from_ram(node);
         } else {
-            get_atoms_from_screen(node);
+            get_atoms_from_screen(node, screen_features_level);
             if( (node->parent_ != nullptr) && (node->parent_->feature_atoms_ == node->feature_atoms_) ) {
                 node->frame_rep_ = node->parent_->frame_rep_ + frameskip_;
                 assert(node->children_.empty());
             }
         }
-        assert((node->frame_rep_ == 0) || (screen_features_type_ > 0));
+        assert((node->frame_rep_ == 0) || (screen_features_level > 0));
     }
     void get_atoms_from_ram(const Node *node) const {
         assert(node->feature_atoms_.empty());
@@ -457,14 +467,14 @@ struct RolloutIWPlanner : Planner {
         }
         get_atoms_time_ += Utils::read_time_in_seconds() - start_time;
     }
-    void get_atoms_from_screen(const Node *node) const {
+    void get_atoms_from_screen(const Node *node, int screen_features_level) const {
         assert(node->feature_atoms_.empty());
         float start_time = Utils::read_time_in_seconds();
-        if( (screen_features_type_ < 3) || (node->parent_ == nullptr) ) {
-            MyALEScreen screen(sim_, screen_features_type_, &node->feature_atoms_);
+        if( (screen_features_level < 3) || (node->parent_ == nullptr) ) {
+            MyALEScreen screen(sim_, logos_, screen_features_level, &node->feature_atoms_);
         } else {
-            assert((screen_features_type_ == 3) && (node->parent_ != nullptr));
-            MyALEScreen screen(sim_, screen_features_type_, &node->feature_atoms_, &node->parent_->feature_atoms_);
+            assert((screen_features_level == 3) && (node->parent_ != nullptr));
+            MyALEScreen screen(sim_, logos_, screen_features_level, &node->feature_atoms_, &node->parent_->feature_atoms_);
         }
         get_atoms_time_ += Utils::read_time_in_seconds() - start_time;
     }
@@ -489,9 +499,11 @@ struct RolloutIWPlanner : Planner {
         return feature_atoms[0];
     }
 
-    void update_novelty_table(size_t depth, const std::vector<int> &feature_atoms, std::vector<int> &novelty_table) const {
+    void update_novelty_table(int novel_atom, size_t depth, const std::vector<int> &feature_atoms, std::vector<int> &novelty_table) const {
+        assert(novelty_table[novel_atom] > depth);
         float start_time = Utils::read_time_in_seconds();
-        for( size_t k = 0; k < feature_atoms.size(); ++k ) {
+        size_t first_index = 0;
+        for( size_t k = first_index; k < feature_atoms.size(); ++k ) {
             assert((feature_atoms[k] >= 0) && (feature_atoms[k] < novelty_table.size()));
             if( depth < novelty_table[feature_atoms[k]] )
                 novelty_table[feature_atoms[k]] = depth;

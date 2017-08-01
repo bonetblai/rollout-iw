@@ -19,6 +19,7 @@ struct MyALEScreen {
     const int type_; // type=0: no features, type=1: basic features, type=2: basic + B-PROS, type=3: basic + B-PROS + B-PROT
     const bool stratification_;
     const bool debug_;
+    std::ostream &logos_;
     const ALEScreen &screen_;
     std::vector<bool> basic_features_bitmap_;
     std::vector<bool> bpros_features_bitmap_;
@@ -39,6 +40,7 @@ struct MyALEScreen {
     static size_t num_background_pixels_;
 
     MyALEScreen(ALEInterface &ale,
+                std::ostream &logos,
                 int type,
                 std::vector<int> *screen_state_atoms = nullptr,
                 const std::vector<int> *prev_screen_state_atoms = nullptr,
@@ -46,14 +48,15 @@ struct MyALEScreen {
       : type_(type),
         stratification_(false),
         debug_(debug),
+        logos_(logos),
         screen_(ale.getScreen()) {
 
         if( debug_ ) {
-            std::cout << "screen:"
-                      << " type=" << type_
-                      << ", height=" << screen_.height() << " (expecting " << height_ << ")"
-                      << ", width=" << screen_.width() << " (expecting " << width_ << ")"
-                      << std::endl;
+            logos_ << "screen:"
+                   << " type=" << type_
+                   << ", height=" << screen_.height() << " (expecting " << height_ << ")"
+                   << ", width=" << screen_.width() << " (expecting " << width_ << ")"
+                   << std::endl;
         }
         assert((width_ == screen_.width()) && (height_ == screen_.height()));
 
@@ -73,11 +76,11 @@ struct MyALEScreen {
         screen_(ale.getScreen()) {
 
         if( debug_ ) {
-            std::cout << "screen:"
-                      << " type=" << type_
-                      << ", height=" << screen_.height() << " (expecting " << height_ << ")"
-                      << ", width=" << screen_.width() << " (expecting " << width_ << ")"
-                      << std::endl;
+            logos_ << "screen:"
+                   << " type=" << type_
+                   << ", height=" << screen_.height() << " (expecting " << height_ << ")"
+                   << ", width=" << screen_.width() << " (expecting " << width_ << ")"
+                   << std::endl;
         }
         assert((width_ == screen_.width()) && (height_ == screen_.height()));
 
@@ -103,12 +106,12 @@ struct MyALEScreen {
         }
 
         if( debug_ ) {
-            std::cout << "screen:"
-                      << " #features=" << screen_state_atoms->size()
-                      << ", #basic=" << num_basic_features
-                      << ", #bpros=" << num_bpros_features
-                      << ", #bprot=" << num_bprot_features
-                      << std::endl;
+            logos_ << "screen:"
+                   << " #features=" << screen_state_atoms->size()
+                   << ", #basic=" << num_basic_features
+                   << ", #bpros=" << num_bpros_features
+                   << ", #bprot=" << num_bprot_features
+                   << std::endl;
         }
     }
 #endif
@@ -133,10 +136,10 @@ struct MyALEScreen {
         background_ = std::vector<pixel_t>(width_ * height_, 0);
         num_background_pixels_ = width_ * height_;
     }
-    static void compute_background_image(ALEInterface &ale, size_t num_frames, bool debug = false) {
+    static void compute_background_image(ALEInterface &ale, std::ostream &logos, size_t num_frames, bool debug = false) {
         assert((width_ == ale.getScreen().width()) && (height_ == ale.getScreen().height()));
         float start_time = Utils::read_time_in_seconds();
-        if( debug ) std::cout << "screen: computing background image... " << std::flush;
+        if( debug ) logos << "screen: computing background image... " << std::flush;
 
         minimal_actions_ = ale.getMinimalActionSet();
         minimal_actions_size_ = minimal_actions_.size();
@@ -172,22 +175,22 @@ struct MyALEScreen {
 
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
         if( debug ) {
-            std::cout << "done in " << elapsed_time << " seconds"
-                      << std::endl
-                      << Utils::blue() << "background:" << Utils::normal()
-                      << " #pixels=" << num_background_pixels_ << "/" << width_ * height_
-                      << std::endl;
+            logos << "done in " << elapsed_time << " seconds"
+                  << std::endl
+                  << Utils::blue() << "background:" << Utils::normal()
+                  << " #pixels=" << num_background_pixels_ << "/" << width_ * height_
+                  << std::endl;
         }
     }
-    static void ammend_background_image(size_t r, size_t c, bool debug = false) {
+    static void ammend_background_image(size_t r, size_t c, bool debug = false, std::ostream *logos = nullptr) {
         assert(background_[r * width_ + c] > 0);
         assert(num_background_pixels_ > 0);
         background_[r * width_ + c] = 0;
         --num_background_pixels_;
-        if( debug ) {
-            std::cout << Utils::blue() << "background:" << Utils::normal()
-                      << " #pixels=" << num_background_pixels_ << "/" << width_ * height_
-                      << std::endl;
+        if( debug && (logos != nullptr) ) {
+            *logos << Utils::blue() << "background:" << Utils::normal()
+                   << " #pixels=" << num_background_pixels_ << "/" << width_ * height_
+                   << std::endl;
         }
     }
 
@@ -218,12 +221,12 @@ struct MyALEScreen {
         }
 
         if( debug_ ) {
-            std::cout << "screen:"
-                      << " #features=" << screen_state_atoms->size()
-                      << ", #basic=" << num_basic_features
-                      << ", #bpros=" << num_bpros_features
-                      << ", #bprot=" << num_bprot_features
-                      << std::endl;
+            logos_ << "screen:"
+                   << " #features=" << screen_state_atoms->size()
+                   << ", #basic=" << num_basic_features
+                   << ", #bpros=" << num_bpros_features
+                   << ", #bprot=" << num_bprot_features
+                   << std::endl;
         }
     }
 
@@ -237,7 +240,7 @@ struct MyALEScreen {
 
                 // subtract/ammend background pixel
                 if( p < b )
-                    ammend_background_image(15*r + ir, 10*c + ic, false);
+                    ammend_background_image(15*r + ir, 10*c + ic, false, &logos_);
                 else
                     p -= b;
 

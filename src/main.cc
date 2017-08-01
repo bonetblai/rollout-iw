@@ -1,6 +1,7 @@
 // (c) 2017 Blai Bonet
 
 #include <iostream>
+#include <fstream>
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include <boost/tokenizer.hpp>
@@ -25,7 +26,7 @@ size_t MyALEScreen::minimal_actions_size_;
 
 
 pair<float, pair<size_t, size_t> >
-run_trial(ALEInterface &env, const Planner &planner, bool execute_single_action, size_t frameskip, size_t max_execution_length_in_frames, vector<Action> &prefix) {
+run_trial(ALEInterface &env, ostream &logos, const Planner &planner, bool execute_single_action, size_t frameskip, size_t max_execution_length_in_frames, vector<Action> &prefix) {
     assert(prefix.empty());
 
     env.reset_game();
@@ -42,13 +43,13 @@ run_trial(ALEInterface &env, const Planner &planner, bool execute_single_action,
             ++decision;
             node = planner.get_branch(env, prefix, node, last_reward, branch);
             if( branch.empty() ) {
-                cout << Utils::error() << "no more available actions!" << endl;
+                logos << Utils::error() << "no more available actions!" << endl;
                 break;
             } else {
-                cout << "branch: len=" << branch.size() << ", actions=[";
+                logos << "branch: len=" << branch.size() << ", actions=[";
                 for( size_t j = 0; j < branch.size(); ++j )
-                    cout << branch[j] << ",";
-                cout << "]" << endl;
+                    logos << branch[j] << ",";
+                logos << "]" << endl;
             }
         }
 
@@ -104,6 +105,7 @@ int main(int argc, char **argv) {
     string action_sequence;
     bool execute_single_action = false;
     float budget_secs_per_decision;
+    string log_file;
     string atari_rom;
 
     // declare supported options
@@ -129,6 +131,7 @@ int main(int argc, char **argv) {
       ("action-sequence", po::value<string>(&action_sequence), "pass fixed action sequence that provides actions (default is \"\" for no such sequence")
       ("budget-secs-per-decision", po::value<float>(&budget_secs_per_decision)->default_value(numeric_limits<float>::max()), "set budget time per decision in seconds (default is infinite)")
       ("execute-single-action", "execute only one action from best branch in lookahead (default is to execute prefix until first reward")
+      ("log-file", po::value<string>(&log_file), "set path to log file (default is \"\" for no logging)")
       ("rom", po::value<string>(&atari_rom), "set Atari ROM")
     ;
 
@@ -146,6 +149,7 @@ int main(int argc, char **argv) {
     }
 
     // set default values
+    ostream *logos = &cout;;
     if( opt_varmap.count("nodisplay") )
         no_display = true;
     if( opt_varmap.count("sound") )
@@ -158,12 +162,35 @@ int main(int argc, char **argv) {
         max_rep = 60 / frameskip;
     if( !opt_varmap.count("execute-single-action") )
         execute_single_action = true;
+    if( opt_varmap.count("log-file") ) {
+        cout << "logging: file=" << log_file << endl;
+        logos = new ofstream(log_file);
+    }
 
     // check whether there is something to be done
     if( opt_varmap.count("help") || (atari_rom == "") ) {
         usage(cout, opt_desc);
         exit(1);
     }
+
+    // print command-line options
+    *logos << "options:" << endl;
+    bool something_printed = false;
+    for( po::variables_map::const_iterator it = opt_varmap.begin(); it != opt_varmap.end(); ++it ) {
+        if( something_printed ) *logos << " \\" << endl;
+        *logos << "  --" << it->first;
+        if( ((boost::any)it->second.value()).type() == typeid(bool) ) {
+            *logos << " " << opt_varmap[it->first].as<bool>();
+        } else if( ((boost::any)it->second.value()).type() == typeid(int) ) {
+            *logos << " " << opt_varmap[it->first].as<int>();
+        } else if( ((boost::any)it->second.value()).type() == typeid(float) ) {
+            *logos << " " << opt_varmap[it->first].as<float>();
+        } else if( ((boost::any)it->second.value()).type() == typeid(string) ) {
+            *logos << " " << opt_varmap[it->first].as<string>();
+        }
+        something_printed = true;
+    }
+    if( something_printed ) *logos << endl;
 
     // set random seed for lrand48()
     unsigned short seed[3];
@@ -172,7 +199,6 @@ int main(int argc, char **argv) {
 
     // create ALEs
     ALEInterface env, sim;
-    cout << "frameskip=" << frameskip << endl;
 
     // get/set desired settings
     env.setInt("frame_skip", frameskip);
@@ -202,7 +228,7 @@ int main(int argc, char **argv) {
     // initialize static members for screen features
     if( screen_features > 0 ) {
         MyALEScreen::create_background_image();
-        MyALEScreen::compute_background_image(sim, num_frames_for_background_image, true);
+        MyALEScreen::compute_background_image(sim, *logos, num_frames_for_background_image, true);
     }
 
     // construct planner
@@ -217,6 +243,7 @@ int main(int argc, char **argv) {
             num_tracked_atoms += screen_features > 2 ? 13713408 : 0;
         }
         planner = new RolloutIWPlanner(sim,
+                                       *logos,
                                        frameskip,
                                        budget_secs_per_decision,
                                        screen_features,
@@ -233,23 +260,30 @@ int main(int argc, char **argv) {
         planner = new FixedPlanner(actions);
     }
     assert(planner != nullptr);
-    cout << "planner=" << planner->name() << endl;
+    *logos << "planner=" << planner->name() << endl;
 
     // play
     for( size_t k = 0; k < num_episodes; ++k ) {
         vector<Action> prefix;
         float start_time = Utils::read_time_in_seconds();
-        pair<float, pair<size_t, size_t> > p = run_trial(env, *planner, execute_single_action, frameskip, max_execution_length_in_frames, prefix);
+        pair<float, pair<size_t, size_t> > p = run_trial(env, *logos, *planner, execute_single_action, frameskip, max_execution_length_in_frames, prefix);
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
-        cout << "stats:"
-             << "  score=" << p.first
-             << ", decisions=" << p.second.first
-             << ", frames=" << p.second.second
-             << ", total-time=" << elapsed_time
-             << ", avg-time-per-decision=" << elapsed_time / float(p.second.first)
-             << ", avg-time-per-frame=" << elapsed_time / float(p.second.second)
-             << endl;
+        *logos << "stats:"
+               << "  score=" << p.first
+               << ", decisions=" << p.second.first
+               << ", frames=" << p.second.second
+               << ", total-time=" << elapsed_time
+               << ", avg-time-per-decision=" << elapsed_time / float(p.second.first)
+               << ", avg-time-per-frame=" << elapsed_time / float(p.second.second)
+               << endl;
     }
+
+    // cleanup
+    if( dynamic_cast<ofstream*>(logos) != nullptr ) {
+        static_cast<ofstream*>(logos)->close();
+        delete logos;
+    }
+
     return 0;
 }
 

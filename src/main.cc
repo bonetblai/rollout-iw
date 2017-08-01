@@ -268,8 +268,8 @@ int main(int argc, char **argv) {
         float start_time = Utils::read_time_in_seconds();
         pair<float, pair<size_t, size_t> > p = run_trial(env, *logos, *planner, execute_single_action, frameskip, max_execution_length_in_frames, prefix);
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
-        *logos << "stats:"
-               << "  score=" << p.first
+        *logos << "episode-stats:"
+               << " score=" << p.first
                << ", decisions=" << p.second.first
                << ", frames=" << p.second.second
                << ", total-time=" << elapsed_time

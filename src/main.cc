@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
     string rec_dir;
     string rec_sound_filename;
     int screen_features;
-    bool feature_stratification = true;
+    bool feature_stratification = false;
     int max_depth;
     int max_rep;
     float discount;
@@ -105,6 +105,7 @@ int main(int argc, char **argv) {
     string action_sequence;
     bool execute_single_action = false;
     float budget_secs_per_decision;
+    bool novelty_subtables = false;
     string log_file;
     string atari_rom;
 
@@ -119,7 +120,7 @@ int main(int argc, char **argv) {
       ("rec-dir", po::value<string>(&rec_dir), "set folder for recording (default is \"\" for no recording)")
       ("rec-sound-filename", po::value<string>(&rec_sound_filename), "set filename for recording sound (default is \"\" for no recording)")
       ("features", po::value<int>(&screen_features)->default_value(0), "set feature set: 0=RAM, 1=basic, 2=basic+B-PROS, 3=basic+B-PROS+B-PROT (default is 0)")
-      ("no-feature-stratification", "turn off feature stratification (default is stratification)")
+      ("feature-stratification", "turn on feature stratification (default is off)")
       ("max-depth", po::value<int>(&max_depth)->default_value(1500), "set max depth for lookahead (default is 1500)")
       ("max-rep", po::value<int>(&max_rep), "set max rep(etition) of screen features during lookahead (default is 30 frames")
       ("discount", po::value<float>(&discount)->default_value(1.0), "set discount factor for lookahead (default is 1.0)")
@@ -130,6 +131,7 @@ int main(int argc, char **argv) {
       ("frames-background-image", po::value<int>(&num_frames_for_background_image)->default_value(100), "set number of random frames to compute background image (default is 100 frames)")
       ("action-sequence", po::value<string>(&action_sequence), "pass fixed action sequence that provides actions (default is \"\" for no such sequence")
       ("budget-secs-per-decision", po::value<float>(&budget_secs_per_decision)->default_value(numeric_limits<float>::max()), "set budget time per decision in seconds (default is infinite)")
+      ("novelty-subtables", "turn on use of novelty subtables (default is to use single table)")
       ("execute-single-action", "execute only one action from best branch in lookahead (default is to execute prefix until first reward")
       ("log-file", po::value<string>(&log_file), "set path to log file (default is \"\" for no logging)")
       ("rom", po::value<string>(&atari_rom), "set Atari ROM")
@@ -154,14 +156,16 @@ int main(int argc, char **argv) {
         no_display = true;
     if( opt_varmap.count("sound") )
         sound = true;
-    if( opt_varmap.count("no-feature-stratification") )
-        feature_stratification = false;
+    if( opt_varmap.count("feature-stratification") )
+        feature_stratification = true;
     if( opt_varmap.count("debug") )
         debug = true;
     if( !opt_varmap.count("max-rep") )
         max_rep = 60 / frameskip;
     if( !opt_varmap.count("execute-single-action") )
         execute_single_action = true;
+    if( opt_varmap.count("novelty-subtables") )
+        novelty_subtables = true;
     if( opt_varmap.count("log-file") ) {
         cout << "logging: file=" << log_file << endl;
         logos = new ofstream(log_file);
@@ -246,6 +250,7 @@ int main(int argc, char **argv) {
                                        *logos,
                                        frameskip,
                                        budget_secs_per_decision,
+                                       novelty_subtables,
                                        screen_features,
                                        feature_stratification,
                                        num_tracked_atoms,

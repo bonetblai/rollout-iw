@@ -22,6 +22,7 @@ class Node {
     size_t depth_;                           // node's depth
     size_t height_;                          // node's height (calculated)
     float reward_;                           // reward for this node
+    float path_reward_;                      // reward of full path leading to this node
     bool is_info_valid_;                     // is info valid?
     bool terminal_;                          // is node a terminal node?
     float value_;                            // backed up value
@@ -40,6 +41,7 @@ class Node {
         depth_(depth),
         height_(0),
         reward_(0),
+        path_reward_(0),
         is_info_valid_(false),
         terminal_(false),
         value_(0),
@@ -96,6 +98,17 @@ class Node {
         depth_ = depth;
         for( size_t k = 0; k < children_.size(); ++k )
             children_[k]->normalize_depth(1 + depth);
+    }
+
+    void recompute_path_rewards(const Node *ref = nullptr) {
+        if( this == ref ) {
+            path_reward_ = reward_;
+        } else {
+            assert(parent_ != nullptr);
+            path_reward_ = parent_->path_reward_ + reward_;
+            for( size_t k = 0; k < children_.size(); ++k )
+                children_[k]->recompute_path_rewards();
+        }
     }
 
     void solve_and_backpropagate_label() {
@@ -284,6 +297,7 @@ class Node {
            << ", lives=" << ale_lives_
            << ", value=" << value_
            << ", reward=" << reward_
+           << ", path-reward=" << path_reward_
            << ", action=" << action_
            << ", depth=" << depth_
            << ", children=[";

@@ -19,11 +19,12 @@ struct RolloutIWPlanner : Planner {
     ALEInterface &sim_;
     std::ostream &logos_;
     ALEState initial_sim_state_;
-    ActionVect minimal_actions_;
-    size_t minimal_actions_size_;
+    ActionVect minimal_action_set_;
+    ActionVect legal_action_set_;
 
     const size_t frameskip_;
     const float budget_secs_per_decision_;
+    const bool novelty_subtables_;
     const int screen_features_type_;
     const bool feature_stratification_;
     const size_t num_tracked_atoms_;
@@ -33,6 +34,7 @@ struct RolloutIWPlanner : Planner {
     const float alpha_;
     const bool debug_;
 
+    mutable float best_global_reward_;
     mutable size_t simulator_calls_;
     mutable size_t num_rollouts_;
     mutable size_t num_expansions_;
@@ -50,6 +52,7 @@ struct RolloutIWPlanner : Planner {
                      std::ostream &logos,
                      size_t frameskip,
                      float budget_secs_per_decision,
+                     bool novelty_subtables,
                      int screen_features_type,
                      bool feature_stratification,
                      size_t num_tracked_atoms,
@@ -62,6 +65,7 @@ struct RolloutIWPlanner : Planner {
         logos_(logos),
         frameskip_(frameskip),
         budget_secs_per_decision_(budget_secs_per_decision),
+        novelty_subtables_(novelty_subtables),
         screen_features_type_(screen_features_type),
         feature_stratification_(feature_stratification),
         num_tracked_atoms_(num_tracked_atoms),
@@ -72,8 +76,8 @@ struct RolloutIWPlanner : Planner {
         debug_(debug) {
         //static_assert(std::numeric_limits<float>::is_iec559, "IEEE 754 required");
         assert(sim_.getInt("frame_skip") == frameskip_);
-        minimal_actions_ = sim_.getMinimalActionSet();
-        minimal_actions_size_ = minimal_actions_.size();
+        minimal_action_set_ = sim_.getMinimalActionSet();
+        legal_action_set_ = sim_.getLegalActionSet();
         reset_game(sim_);
         get_state(sim_, initial_sim_state_);
     }
@@ -93,7 +97,8 @@ struct RolloutIWPlanner : Planner {
     }
 
     virtual Action random_action() const {
-        return minimal_actions_[lrand48() % minimal_actions_size_];
+        //return minimal_action_set_[lrand48() % minimal_action_set_.size()];
+        return legal_action_set_[lrand48() % legal_action_set_.size()];
     }
 
     virtual Node* get_branch(ALEInterface &env,
@@ -116,7 +121,8 @@ struct RolloutIWPlanner : Planner {
         float start_time = Utils::read_time_in_seconds();
 
         // novelty table and other vars
-        std::vector<int> novelty_table(num_tracked_atoms_, std::numeric_limits<int>::max());
+        std::map<int, std::vector<int> > novelty_table_map;
+        //std::vector<int> novelty_table(num_tracked_atoms_, std::numeric_limits<int>::max());
         std::pair<bool, bool> seen_rewards(false, false);
 
         // construct root node
@@ -130,8 +136,9 @@ struct RolloutIWPlanner : Planner {
         assert(root->parent_ != nullptr);
         root->parent_->parent_ = nullptr;
 
-        // normalize depths
+        // normalize depths and recompute path rewards
         root->normalize_depth();
+        root->recompute_path_rewards(root);
 
         // construct lookahead tree
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
@@ -139,12 +146,12 @@ struct RolloutIWPlanner : Planner {
         for( int level = first_level; level <= screen_features_type_; ++level ) {
             if( debug_ ) logos_ << "layer: level=" << level << ", rollouts=" << std::flush;
 
-            // clear solved labels and normalize depths
+            // clear solved labels
             root->clear_solved_labels();
             root->parent_->solved_ = false;
             while( !root->solved_ && (elapsed_time < budget_secs_per_decision_) ) {
                 if( debug_ ) logos_ << '.' << std::flush;
-                rollout(prefix, root, level, max_depth_, max_rep_, alpha_, novelty_table, seen_rewards);
+                rollout(prefix, root, level, max_depth_, max_rep_, alpha_, novelty_table_map, seen_rewards);
 #if 0
                 if( seen_rewards.first && !seen_rewards.second ) {
                     root->backup_values(discount_);
@@ -236,7 +243,7 @@ struct RolloutIWPlanner : Planner {
         // stop timer and print stats
         total_time_ = Utils::read_time_in_seconds() - start_time;
         if( true || debug_ )
-            print_stats(logos_, *root, novelty_table);
+            print_stats(logos_, *root, novelty_table_map);
 
         // return root node
         return root;
@@ -248,7 +255,7 @@ struct RolloutIWPlanner : Planner {
                  size_t max_depth,
                  size_t max_rep,
                  float alpha,
-                 std::vector<int> &novelty_table,
+                 std::map<int, std::vector<int> > &novelty_table_map,
                  std::pair<bool, bool> &seen_rewards) const {
         ++num_rollouts_;
         seen_rewards = std::pair<bool, bool>(false, false);
@@ -270,7 +277,8 @@ struct RolloutIWPlanner : Planner {
                 if( node->frame_rep_ == 0 ) {
                     ++num_expansions_;
                     float start_time = Utils::read_time_in_seconds();
-                    node->expand(minimal_actions_);
+                    //node->expand(minimal_action_set_);
+                    node->expand(legal_action_set_);
                     expand_time_ += Utils::read_time_in_seconds() - start_time;
                 } else {
                     assert((node->parent_ != nullptr) && (screen_features_level > 0));
@@ -333,8 +341,9 @@ struct RolloutIWPlanner : Planner {
             }
 
             // calculate novelty
+            std::vector<int> &novelty_table = get_novelty_table(node, novelty_table_map);
             int atom = get_novel_atom(node->depth_, node->feature_atoms_, novelty_table);
-            assert((atom >= 0) && (atom < num_tracked_atoms_));
+            assert((atom >= 0) && (atom < novelty_table.size()));
 
             // five cases
             if( node->depth_ > max_depth ) {
@@ -393,7 +402,13 @@ struct RolloutIWPlanner : Planner {
                 //logos_ << "L" << std::flush;
             }
         }
+        node->path_reward_ = node->parent_ == nullptr ? 0 : node->parent_->path_reward_;
+        node->path_reward_ += node->reward_;
         node->is_info_valid_ = true;
+
+        // update best global reward
+        if( best_global_reward_ < node->path_reward_ )
+            best_global_reward_ = node->path_reward_;
     }
 
 #if 0
@@ -477,6 +492,33 @@ struct RolloutIWPlanner : Planner {
             MyALEScreen screen(sim_, logos_, screen_features_level, &node->feature_atoms_, &node->parent_->feature_atoms_);
         }
         get_atoms_time_ += Utils::read_time_in_seconds() - start_time;
+    }
+
+    int get_index_for_novelty_table(const Node *node) const {
+        if( !novelty_subtables_ ) {
+            return 0;
+        } else {
+            if( node->path_reward_ <= 0 ) {
+                return 0;
+            } else {
+                int logr = int(floorf(log2f(node->path_reward_)));
+                assert((logr != 0) || (node->path_reward_ >= 1));
+                return node->path_reward_ < 1 ? logr : 1 + logr;
+            }
+        }
+    }
+
+    std::vector<int>& get_novelty_table(const Node *node, std::map<int, std::vector<int> > &novelty_table_map) const {
+        int index = get_index_for_novelty_table(node);
+        std::map<int, std::vector<int> >::iterator it = novelty_table_map.find(index);
+        if( it == novelty_table_map.end() ) {
+            novelty_table_map.insert(std::make_pair(index, std::vector<int>()));
+            std::vector<int> &novelty_table = novelty_table_map.at(index);
+            novelty_table = std::vector<int>(num_tracked_atoms_, std::numeric_limits<int>::max());
+            return novelty_table;
+        } else {
+            return it->second;
+        }
     }
 
     int get_novel_atom(size_t depth, const std::vector<int> &feature_atoms, const std::vector<int> &novelty_table) const {
@@ -587,6 +629,7 @@ struct RolloutIWPlanner : Planner {
     }
 
     void reset_stats() const {
+        best_global_reward_ = 0;
         simulator_calls_ = 0;
         num_rollouts_ = 0;
         num_expansions_ = 0;
@@ -604,12 +647,17 @@ struct RolloutIWPlanner : Planner {
         expand_time_ = 0;
     }
 
-    void print_stats(std::ostream &os, const Node &root, const std::vector<int> &novelty_table) const {
+    void print_stats(std::ostream &os, const Node &root, const std::map<int, std::vector<int> > &novelty_table_map) const {
         os << Utils::red()
            << "stats:"
            << " #rollouts=" << num_rollouts_
-           << ", #entries=" << num_entries(novelty_table) << "/" << novelty_table.size()
-           << ", #nodes=" << root.num_nodes()
+           << ", #entries=[";
+
+        for( std::map<int, std::vector<int> >::const_iterator it = novelty_table_map.begin(); it != novelty_table_map.end(); ++it )
+            os << it->first << ":" << num_entries(it->second) << "/" << it->second.size() << ",";
+        os << "]";
+   
+        os << ", #nodes=" << root.num_nodes()
            << ", #tips=" << root.num_tip_nodes()
            << ", height=[" << root.height_ << ":";
 

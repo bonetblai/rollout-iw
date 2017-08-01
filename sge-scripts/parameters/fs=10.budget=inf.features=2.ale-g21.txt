@@ -1,0 +1,7 @@
+10 inf 2 --nodisplay star_gunner.bin
+10 inf 2 --nodisplay tennis.bin
+10 inf 2 --nodisplay up_n_down.bin
+10 inf 2 --nodisplay venture.bin
+10 inf 2 --nodisplay video_pinball.bin
+10 inf 2 --nodisplay wizard_of_wor.bin
+10 inf 2 --nodisplay zaxxon.bin

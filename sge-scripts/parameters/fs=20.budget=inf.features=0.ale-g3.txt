@@ -1,0 +1,8 @@
+20 inf 0 --nodisplay asterix.bin
+20 inf 0 --nodisplay beam_rider.bin
+20 inf 0 --nodisplay breakout.bin
+20 inf 0 --nodisplay enduro.bin
+20 inf 0 --nodisplay freeway.bin
+20 inf 0 --nodisplay pong.bin
+20 inf 0 --nodisplay qbert.bin
+20 inf 0 --nodisplay seaquest.bin

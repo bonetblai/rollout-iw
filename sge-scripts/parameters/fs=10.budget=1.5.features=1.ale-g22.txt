@@ -1,0 +1,8 @@
+10 1.5 1 --execute-single-action,--nodisplay jamesbond.bin
+10 1.5 1 --execute-single-action,--nodisplay kangaroo.bin
+10 1.5 1 --execute-single-action,--nodisplay krull.bin
+10 1.5 1 --execute-single-action,--nodisplay montezuma_revenge.bin
+10 1.5 1 --execute-single-action,--nodisplay ms_pacman.bin
+10 1.5 1 --execute-single-action,--nodisplay name_this_game.bin
+10 1.5 1 --execute-single-action,--nodisplay riverraid.bin
+10 1.5 1 --execute-single-action,--nodisplay robotank.bin

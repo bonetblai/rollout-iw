@@ -1,0 +1,8 @@
+10 0.5 2 --execute-single-action,--nodisplay asterix.bin
+10 0.5 2 --execute-single-action,--nodisplay beam_rider.bin
+10 0.5 2 --execute-single-action,--nodisplay breakout.bin
+10 0.5 2 --execute-single-action,--nodisplay enduro.bin
+10 0.5 2 --execute-single-action,--nodisplay freeway.bin
+10 0.5 2 --execute-single-action,--nodisplay pong.bin
+10 0.5 2 --execute-single-action,--nodisplay qbert.bin
+10 0.5 2 --execute-single-action,--nodisplay seaquest.bin

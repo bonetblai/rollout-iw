@@ -1,0 +1,8 @@
+05 inf 0 --nodisplay jamesbond.bin
+05 inf 0 --nodisplay kangaroo.bin
+05 inf 0 --nodisplay krull.bin
+05 inf 0 --nodisplay montezuma_revenge.bin
+05 inf 0 --nodisplay ms_pacman.bin
+05 inf 0 --nodisplay name_this_game.bin
+05 inf 0 --nodisplay riverraid.bin
+05 inf 0 --nodisplay robotank.bin

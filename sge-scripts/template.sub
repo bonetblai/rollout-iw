@@ -1,0 +1,41 @@
+#!/bin/bash
+
+#$ -N rolloutIW
+#$ -q default.q
+#$ -cwd
+#$ -o output/OUT
+#$ -e output/ERR
+#$ -t 1-XXX
+#$ -l h_cpu=06:00:00
+#$ -l h_rt=06:00:00
+#$ -l mem_free=8G
+#$ -l h_vmem=8G
+# -l hostname="node01|node04|node06|node07|node08|node09|node10"
+
+export IW_ROOT=$HOME/software/github/rollout-iw
+export ALE_ROOT=$HOME/software/github/Arcade-Learning-Environment
+
+parameters_file=$1
+rdir=$2
+
+# Program parameters taken from the parameters file.
+record=`awk "NR==$SGE_TASK_ID" $problems`
+frameskip=`echo $record | awk '{print $1;}'`
+budget=`echo $record | awk '{print $2;}'`
+features=`echo $record | awk '{print $3;}'`
+options=`echo $record | awk '{print $4;}'`
+rom=`echo $record | awk '{print $5;}'`
+
+rom_str=${domain_file//\//_}
+
+output_path=$IW_ROOT/sge-results/$rdir/$rom_str
+output_file=$output_path/output.riw.fs=${frameskip}.b=${budget}.f=${features}.rom=${rom_str}.txt
+
+mkdir -p $output_path
+
+if [ ! -f "$output_file" ]; then
+    ./experiment.sh $frameskip $budget $features $options $rom $output_file
+else
+    echo "Doing nothing since file $output_file exists!"
+fi
+

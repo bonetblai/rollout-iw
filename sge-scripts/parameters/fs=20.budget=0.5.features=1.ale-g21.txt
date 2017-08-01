@@ -1,0 +1,7 @@
+20 0.5 1 --execute-single-action,--nodisplay star_gunner.bin
+20 0.5 1 --execute-single-action,--nodisplay tennis.bin
+20 0.5 1 --execute-single-action,--nodisplay up_n_down.bin
+20 0.5 1 --execute-single-action,--nodisplay venture.bin
+20 0.5 1 --execute-single-action,--nodisplay video_pinball.bin
+20 0.5 1 --execute-single-action,--nodisplay wizard_of_wor.bin
+20 0.5 1 --execute-single-action,--nodisplay zaxxon.bin

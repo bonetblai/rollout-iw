@@ -1,0 +1,8 @@
+30 1.0 1 --execute-single-action,--nodisplay asterix.bin
+30 1.0 1 --execute-single-action,--nodisplay beam_rider.bin
+30 1.0 1 --execute-single-action,--nodisplay breakout.bin
+30 1.0 1 --execute-single-action,--nodisplay enduro.bin
+30 1.0 1 --execute-single-action,--nodisplay freeway.bin
+30 1.0 1 --execute-single-action,--nodisplay pong.bin
+30 1.0 1 --execute-single-action,--nodisplay qbert.bin
+30 1.0 1 --execute-single-action,--nodisplay seaquest.bin

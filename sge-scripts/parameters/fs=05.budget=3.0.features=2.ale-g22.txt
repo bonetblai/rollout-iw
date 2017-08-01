@@ -1,8 +1,8 @@
-05 3.0 2 --execute-single-action,--nodisplay jamesbond.bin
-05 3.0 2 --execute-single-action,--nodisplay kangaroo.bin
-05 3.0 2 --execute-single-action,--nodisplay krull.bin
-05 3.0 2 --execute-single-action,--nodisplay montezuma_revenge.bin
-05 3.0 2 --execute-single-action,--nodisplay ms_pacman.bin
-05 3.0 2 --execute-single-action,--nodisplay name_this_game.bin
-05 3.0 2 --execute-single-action,--nodisplay riverraid.bin
-05 3.0 2 --execute-single-action,--nodisplay robotank.bin
+05 3.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/jamesbond.bin
+05 3.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/kangaroo.bin
+05 3.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/krull.bin
+05 3.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/montezuma_revenge.bin
+05 3.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/ms_pacman.bin
+05 3.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/name_this_game.bin
+05 3.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/riverraid.bin
+05 3.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/robotank.bin

@@ -1,7 +1,7 @@
-20 inf 0 --nodisplay star_gunner.bin
-20 inf 0 --nodisplay tennis.bin
-20 inf 0 --nodisplay up_n_down.bin
-20 inf 0 --nodisplay venture.bin
-20 inf 0 --nodisplay video_pinball.bin
-20 inf 0 --nodisplay wizard_of_wor.bin
-20 inf 0 --nodisplay zaxxon.bin
+20 inf 0 --nodisplay ALE-Atari-Width/group_2_1/star_gunner.bin
+20 inf 0 --nodisplay ALE-Atari-Width/group_2_1/tennis.bin
+20 inf 0 --nodisplay ALE-Atari-Width/group_2_1/up_n_down.bin
+20 inf 0 --nodisplay ALE-Atari-Width/group_2_1/venture.bin
+20 inf 0 --nodisplay ALE-Atari-Width/group_2_1/video_pinball.bin
+20 inf 0 --nodisplay ALE-Atari-Width/group_2_1/wizard_of_wor.bin
+20 inf 0 --nodisplay ALE-Atari-Width/group_2_1/zaxxon.bin

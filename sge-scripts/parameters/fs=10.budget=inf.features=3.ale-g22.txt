@@ -1,8 +1,8 @@
-10 inf 3 --nodisplay jamesbond.bin
-10 inf 3 --nodisplay kangaroo.bin
-10 inf 3 --nodisplay krull.bin
-10 inf 3 --nodisplay montezuma_revenge.bin
-10 inf 3 --nodisplay ms_pacman.bin
-10 inf 3 --nodisplay name_this_game.bin
-10 inf 3 --nodisplay riverraid.bin
-10 inf 3 --nodisplay robotank.bin
+10 inf 3 --nodisplay ALE-Atari-Width/group_2_2/jamesbond.bin
+10 inf 3 --nodisplay ALE-Atari-Width/group_2_2/kangaroo.bin
+10 inf 3 --nodisplay ALE-Atari-Width/group_2_2/krull.bin
+10 inf 3 --nodisplay ALE-Atari-Width/group_2_2/montezuma_revenge.bin
+10 inf 3 --nodisplay ALE-Atari-Width/group_2_2/ms_pacman.bin
+10 inf 3 --nodisplay ALE-Atari-Width/group_2_2/name_this_game.bin
+10 inf 3 --nodisplay ALE-Atari-Width/group_2_2/riverraid.bin
+10 inf 3 --nodisplay ALE-Atari-Width/group_2_2/robotank.bin

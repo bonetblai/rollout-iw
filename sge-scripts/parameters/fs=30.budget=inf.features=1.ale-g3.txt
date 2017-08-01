@@ -1,8 +1,8 @@
-30 inf 1 --nodisplay asterix.bin
-30 inf 1 --nodisplay beam_rider.bin
-30 inf 1 --nodisplay breakout.bin
-30 inf 1 --nodisplay enduro.bin
-30 inf 1 --nodisplay freeway.bin
-30 inf 1 --nodisplay pong.bin
-30 inf 1 --nodisplay qbert.bin
-30 inf 1 --nodisplay seaquest.bin
+30 inf 1 --nodisplay ALE-Atari-Width/group_3/asterix.bin
+30 inf 1 --nodisplay ALE-Atari-Width/group_3/beam_rider.bin
+30 inf 1 --nodisplay ALE-Atari-Width/group_3/breakout.bin
+30 inf 1 --nodisplay ALE-Atari-Width/group_3/enduro.bin
+30 inf 1 --nodisplay ALE-Atari-Width/group_3/freeway.bin
+30 inf 1 --nodisplay ALE-Atari-Width/group_3/pong.bin
+30 inf 1 --nodisplay ALE-Atari-Width/group_3/qbert.bin
+30 inf 1 --nodisplay ALE-Atari-Width/group_3/seaquest.bin

@@ -1,7 +1,7 @@
-30 3.0 2 --execute-single-action,--nodisplay star_gunner.bin
-30 3.0 2 --execute-single-action,--nodisplay tennis.bin
-30 3.0 2 --execute-single-action,--nodisplay up_n_down.bin
-30 3.0 2 --execute-single-action,--nodisplay venture.bin
-30 3.0 2 --execute-single-action,--nodisplay video_pinball.bin
-30 3.0 2 --execute-single-action,--nodisplay wizard_of_wor.bin
-30 3.0 2 --execute-single-action,--nodisplay zaxxon.bin
+30 3.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/star_gunner.bin
+30 3.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/tennis.bin
+30 3.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/up_n_down.bin
+30 3.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/venture.bin
+30 3.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/video_pinball.bin
+30 3.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/wizard_of_wor.bin
+30 3.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/zaxxon.bin

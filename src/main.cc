@@ -76,6 +76,26 @@ void parse_action_sequence(const string &action_sequence, vector<Action> &action
         actions.push_back(static_cast<Action>(atoi(it->c_str())));
 }
 
+void print_options(ostream &os, const po::variables_map &opt_varmap) {
+    os << "options:" << endl;
+    bool something_printed = false;
+    for( po::variables_map::const_iterator it = opt_varmap.begin(); it != opt_varmap.end(); ++it ) {
+        if( something_printed ) os << " \\" << endl;
+        os << "  --" << it->first;
+        if( ((boost::any)it->second.value()).type() == typeid(bool) ) {
+            os << " " << opt_varmap[it->first].as<bool>();
+        } else if( ((boost::any)it->second.value()).type() == typeid(int) ) {
+            os << " " << opt_varmap[it->first].as<int>();
+        } else if( ((boost::any)it->second.value()).type() == typeid(float) ) {
+            os << " " << opt_varmap[it->first].as<float>();
+        } else if( ((boost::any)it->second.value()).type() == typeid(string) ) {
+            os << " " << opt_varmap[it->first].as<string>();
+        }
+        something_printed = true;
+    }
+    if( something_printed ) os << endl;
+}
+
 void usage(ostream &os, const po::options_description &opt_desc) {
     os << Utils::magenta() << "Usage:" << Utils::normal()
        << " rollout <option>* <rom>" << endl
@@ -105,7 +125,7 @@ int main(int argc, char **argv) {
     int num_frames_for_background_image;
     string action_sequence;
     bool execute_single_action = false;
-    float budget_secs_per_decision;
+    float online_budget;
     bool novelty_subtables = false;
     string log_file;
     string atari_rom;
@@ -129,10 +149,10 @@ int main(int argc, char **argv) {
       ("alpha", po::value<float>(&alpha)->default_value(10000.0), "set alpha value for lookahead (default is 10,000)")
       ("debug", "turn on debug (default is off)")
       ("num-episodes", po::value<int>(&num_episodes)->default_value(1), "set number of episodes (default is 1)")
-      ("max-length", po::value<int>(&max_execution_length_in_frames)->default_value(18000), "set max number of frames in single execution (default is 18k frames)")
+      ("max-execution-length", po::value<int>(&max_execution_length_in_frames)->default_value(18000), "set max number of frames in single execution (default is 18k frames)")
       ("frames-background-image", po::value<int>(&num_frames_for_background_image)->default_value(100), "set number of random frames to compute background image (default is 100 frames)")
       ("action-sequence", po::value<string>(&action_sequence), "pass fixed action sequence that provides actions (default is \"\" for no such sequence")
-      ("budget-secs-per-decision", po::value<float>(&budget_secs_per_decision)->default_value(numeric_limits<float>::max()), "set budget time per decision in seconds (default is infinite)")
+      ("online-budget", po::value<float>(&online_budget)->default_value(numeric_limits<float>::infinity()), "set time budget for online decision making (default is infinite)")
       ("novelty-subtables", "turn on use of novelty subtables (default is to use single table)")
       ("execute-single-action", "execute only one action from best branch in lookahead (default is to execute prefix until first reward")
       ("log-file", po::value<string>(&log_file), "set path to log file (default is \"\" for no logging)")
@@ -182,23 +202,7 @@ int main(int argc, char **argv) {
     }
 
     // print command-line options
-    *logos << "options:" << endl;
-    bool something_printed = false;
-    for( po::variables_map::const_iterator it = opt_varmap.begin(); it != opt_varmap.end(); ++it ) {
-        if( something_printed ) *logos << " \\" << endl;
-        *logos << "  --" << it->first;
-        if( ((boost::any)it->second.value()).type() == typeid(bool) ) {
-            *logos << " " << opt_varmap[it->first].as<bool>();
-        } else if( ((boost::any)it->second.value()).type() == typeid(int) ) {
-            *logos << " " << opt_varmap[it->first].as<int>();
-        } else if( ((boost::any)it->second.value()).type() == typeid(float) ) {
-            *logos << " " << opt_varmap[it->first].as<float>();
-        } else if( ((boost::any)it->second.value()).type() == typeid(string) ) {
-            *logos << " " << opt_varmap[it->first].as<string>();
-        }
-        something_printed = true;
-    }
-    if( something_printed ) *logos << endl;
+    print_options(*logos, opt_varmap);
 
     // set random seed for lrand48()
     unsigned short seed[3];
@@ -254,7 +258,7 @@ int main(int argc, char **argv) {
                                        *logos,
                                        use_minimal_action_set,
                                        frameskip,
-                                       budget_secs_per_decision,
+                                       online_budget,
                                        novelty_subtables,
                                        screen_features,
                                        feature_stratification,

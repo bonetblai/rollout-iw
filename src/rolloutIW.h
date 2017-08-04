@@ -24,7 +24,7 @@ struct RolloutIWPlanner : Planner {
 
     const bool use_minimal_action_set_;
     const size_t frameskip_;
-    const float budget_secs_per_decision_;
+    const float online_budget_;
     const bool novelty_subtables_;
     const int screen_features_type_;
     const bool feature_stratification_;
@@ -54,7 +54,7 @@ struct RolloutIWPlanner : Planner {
                      std::ostream &logos,
                      bool use_minimal_action_set,
                      size_t frameskip,
-                     float budget_secs_per_decision,
+                     float online_budget,
                      bool novelty_subtables,
                      int screen_features_type,
                      bool feature_stratification,
@@ -68,7 +68,7 @@ struct RolloutIWPlanner : Planner {
         logos_(logos),
         use_minimal_action_set_(use_minimal_action_set),
         frameskip_(frameskip),
-        budget_secs_per_decision_(budget_secs_per_decision),
+        online_budget_(online_budget),
         novelty_subtables_(novelty_subtables),
         screen_features_type_(screen_features_type),
         feature_stratification_(feature_stratification),
@@ -90,7 +90,7 @@ struct RolloutIWPlanner : Planner {
         return std::string("rollout(")
           + "minimal-action-set=" + std::to_string(use_minimal_action_set_)
           + ",frameskip=" + std::to_string(frameskip_)
-          + ",budget=" + std::to_string(budget_secs_per_decision_)
+          + ",online-budget=" + std::to_string(online_budget_)
           + ",features=" + std::to_string(screen_features_type_)
           + ",stratification=" + std::to_string(feature_stratification_)
           + ",max-depth=" + std::to_string(max_depth_)
@@ -151,12 +151,12 @@ struct RolloutIWPlanner : Planner {
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
         int first_level = feature_stratification_ && (screen_features_type_ > 0) ? 1 : screen_features_type_;
         for( int level = first_level; level <= screen_features_type_; ++level ) {
-            if( debug_ ) logos_ << "layer: level=" << level << ", rollouts=" << std::flush;
+            if( debug_ ) logos_ << Utils::magenta() << "layer:" << Utils::normal() << " level=" << level << ", rollouts=" << std::flush;
 
             // clear solved labels
             root->clear_solved_labels();
             root->parent_->solved_ = false;
-            while( !root->solved_ && (elapsed_time < budget_secs_per_decision_) ) {
+            while( !root->solved_ && (elapsed_time < online_budget_) ) {
                 if( debug_ ) logos_ << '.' << std::flush;
                 rollout(prefix, root, level, max_depth_, max_rep_, alpha_, novelty_table_map, seen_rewards);
 #if 0
@@ -343,10 +343,10 @@ struct RolloutIWPlanner : Planner {
             // report non-zero rewards
             if( node->reward_ > 0 ) {
                 seen_rewards.first = true;
-                //logos_ << Utils::yellow() << "+" << Utils::normal() << std::flush;
+                if( debug_ ) logos_ << Utils::yellow() << "+" << Utils::normal() << std::flush;
             } else if( node->reward_ < 0 ) {
                 seen_rewards.second = true;
-                //logos_ << "-" << std::flush;
+                if( debug_ ) logos_ << "-" << std::flush;
             }
 
             // calculate novelty

@@ -22,6 +22,7 @@ struct RolloutIWPlanner : Planner {
     ActionVect minimal_action_set_;
     ActionVect legal_action_set_;
 
+    const bool use_minimal_action_set_;
     const size_t frameskip_;
     const float budget_secs_per_decision_;
     const bool novelty_subtables_;
@@ -44,12 +45,14 @@ struct RolloutIWPlanner : Planner {
     mutable float reset_time_;
     mutable float get_set_state_time_;
     mutable float update_novelty_time_;
+    mutable size_t get_atoms_calls_;
     mutable float get_atoms_time_;
     mutable float novel_atom_time_;
     mutable float expand_time_;
 
     RolloutIWPlanner(ALEInterface &sim,
                      std::ostream &logos,
+                     bool use_minimal_action_set,
                      size_t frameskip,
                      float budget_secs_per_decision,
                      bool novelty_subtables,
@@ -63,6 +66,7 @@ struct RolloutIWPlanner : Planner {
                      bool debug = false)
       : sim_(sim),
         logos_(logos),
+        use_minimal_action_set_(use_minimal_action_set),
         frameskip_(frameskip),
         budget_secs_per_decision_(budget_secs_per_decision),
         novelty_subtables_(novelty_subtables),
@@ -84,7 +88,8 @@ struct RolloutIWPlanner : Planner {
 
     virtual std::string name() const {
         return std::string("rollout(")
-          + "frameskip=" + std::to_string(frameskip_)
+          + "minimal-action-set=" + std::to_string(use_minimal_action_set_)
+          + ",frameskip=" + std::to_string(frameskip_)
           + ",budget=" + std::to_string(budget_secs_per_decision_)
           + ",features=" + std::to_string(screen_features_type_)
           + ",stratification=" + std::to_string(feature_stratification_)
@@ -97,8 +102,10 @@ struct RolloutIWPlanner : Planner {
     }
 
     virtual Action random_action() const {
-        //return minimal_action_set_[lrand48() % minimal_action_set_.size()];
-        return legal_action_set_[lrand48() % legal_action_set_.size()];
+        if( use_minimal_action_set_ )
+            return minimal_action_set_[lrand48() % minimal_action_set_.size()];
+        else
+            return legal_action_set_[lrand48() % legal_action_set_.size()];
     }
 
     virtual Node* get_branch(ALEInterface &env,
@@ -277,8 +284,10 @@ struct RolloutIWPlanner : Planner {
                 if( node->frame_rep_ == 0 ) {
                     ++num_expansions_;
                     float start_time = Utils::read_time_in_seconds();
-                    //node->expand(minimal_action_set_);
-                    node->expand(legal_action_set_);
+                    if( use_minimal_action_set_ )
+                        node->expand(minimal_action_set_);
+                    else
+                        node->expand(legal_action_set_);
                     expand_time_ += Utils::read_time_in_seconds() - start_time;
                 } else {
                     assert((node->parent_ != nullptr) && (screen_features_level > 0));
@@ -460,6 +469,7 @@ struct RolloutIWPlanner : Planner {
 
     void get_atoms(const Node *node, int screen_features_level) const {
         assert(node->feature_atoms_.empty());
+        ++get_atoms_calls_;
         if( screen_features_level == 0 ) { // RAM mode
             get_atoms_from_ram(node);
         } else {
@@ -642,6 +652,7 @@ struct RolloutIWPlanner : Planner {
         reset_time_ = 0;
         get_set_state_time_ = 0;
         update_novelty_time_ = 0;
+        get_atoms_calls_ = 0;
         get_atoms_time_ = 0;
         novel_atom_time_ = 0;
         expand_time_ = 0;
@@ -656,7 +667,7 @@ struct RolloutIWPlanner : Planner {
         for( std::map<int, std::vector<int> >::const_iterator it = novelty_table_map.begin(); it != novelty_table_map.end(); ++it )
             os << it->first << ":" << num_entries(it->second) << "/" << it->second.size() << ",";
         os << "]";
-   
+
         os << ", #nodes=" << root.num_nodes()
            << ", #tips=" << root.num_tip_nodes()
            << ", height=[" << root.height_ << ":";
@@ -674,6 +685,7 @@ struct RolloutIWPlanner : Planner {
            << ", get/set-state-time=" << get_set_state_time_
            << ", expand-time=" << expand_time_
            << ", update-novelty-time=" << update_novelty_time_
+           << ", get-atoms-calls=" << get_atoms_calls_
            << ", get-atoms-time=" << get_atoms_time_
            << ", novel-atom-time=" << novel_atom_time_
            << Utils::normal() << std::endl;

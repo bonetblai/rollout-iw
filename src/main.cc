@@ -86,9 +86,10 @@ void usage(ostream &os, const po::options_description &opt_desc) {
 
 int main(int argc, char **argv) {
     // parameters
+    bool use_minimal_action_set = false;
     int frameskip;
     int random_seed;
-    bool no_display = false;
+    bool display = true;
     bool sound = false;
     string rec_dir;
     string rec_sound_filename;
@@ -113,6 +114,7 @@ int main(int argc, char **argv) {
     po::options_description opt_desc("Allowed options");
     opt_desc.add_options()
       ("help", "help message")
+      ("minimal-action-set", "turn on minimal action set instead of larger legal action set")
       ("frameskip", po::value<int>(&frameskip)->default_value(5), "set frame skip rate")
       ("seed", po::value<int>(&random_seed)->default_value(0), "set random seed")
       ("nodisplay", "turn off display (default is display)")
@@ -152,8 +154,10 @@ int main(int argc, char **argv) {
 
     // set default values
     ostream *logos = &cout;;
+    if( opt_varmap.count("use-minimal-action-set") )
+        use_minimal_action_set = true;
     if( opt_varmap.count("nodisplay") )
-        no_display = true;
+        display = false;
     if( opt_varmap.count("sound") )
         sound = true;
     if( opt_varmap.count("feature-stratification") )
@@ -162,7 +166,7 @@ int main(int argc, char **argv) {
         debug = true;
     if( !opt_varmap.count("max-rep") )
         max_rep = 60 / frameskip;
-    if( !opt_varmap.count("execute-single-action") )
+    if( opt_varmap.count("execute-single-action") )
         execute_single_action = true;
     if( opt_varmap.count("novelty-subtables") )
         novelty_subtables = true;
@@ -214,7 +218,7 @@ int main(int argc, char **argv) {
     fs::path rom_path(atari_rom);
 
 #ifdef __USE_SDL
-    env.setBool("display_screen", !no_display);
+    env.setBool("display_screen", display);
     env.setBool("sound", sound);
     if( rec_dir != "" ) {
         string full_rec_dir = rec_dir + "/" + rom_path.filename().string();
@@ -248,6 +252,7 @@ int main(int argc, char **argv) {
         }
         planner = new RolloutIWPlanner(sim,
                                        *logos,
+                                       use_minimal_action_set,
                                        frameskip,
                                        budget_secs_per_decision,
                                        novelty_subtables,

@@ -17,6 +17,6 @@ options=${raw_options//,/ }
 if [ "$budget" == "inf" ]; then
   $IW_ROOT/src/rolloutIW --frameskip $frameskip --features $features --log-file $log_file --rom $IW_ROOT/atari-roms/$rom $options
 else
-  $IW_ROOT/src/rolloutIW --frameskip $frameskip --budget-secs-per-decision $budget --features $features --log-file $log_file --rom $IW_ROOT/atari-roms/$rom $options
+  $IW_ROOT/src/rolloutIW --frameskip $frameskip --online-budget $budget --features $features --log-file $log_file --rom $IW_ROOT/atari-roms/$rom $options
 fi
 

@@ -1,8 +1,0 @@
-05 inf 3 --nodisplay ALE-Atari-Width/group_2_2/jamesbond.bin
-05 inf 3 --nodisplay ALE-Atari-Width/group_2_2/kangaroo.bin
-05 inf 3 --nodisplay ALE-Atari-Width/group_2_2/krull.bin
-05 inf 3 --nodisplay ALE-Atari-Width/group_2_2/montezuma_revenge.bin
-05 inf 3 --nodisplay ALE-Atari-Width/group_2_2/ms_pacman.bin
-05 inf 3 --nodisplay ALE-Atari-Width/group_2_2/name_this_game.bin
-05 inf 3 --nodisplay ALE-Atari-Width/group_2_2/riverraid.bin
-05 inf 3 --nodisplay ALE-Atari-Width/group_2_2/robotank.bin

@@ -1,8 +1,0 @@
-10 1.5 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/asterix.bin
-10 1.5 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/beam_rider.bin
-10 1.5 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/breakout.bin
-10 1.5 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/enduro.bin
-10 1.5 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/freeway.bin
-10 1.5 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/pong.bin
-10 1.5 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/qbert.bin
-10 1.5 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/seaquest.bin

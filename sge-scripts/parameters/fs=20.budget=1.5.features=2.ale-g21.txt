@@ -1,7 +1,0 @@
-20 1.5 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/star_gunner.bin
-20 1.5 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/tennis.bin
-20 1.5 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/up_n_down.bin
-20 1.5 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/venture.bin
-20 1.5 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/video_pinball.bin
-20 1.5 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/wizard_of_wor.bin
-20 1.5 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/zaxxon.bin

@@ -381,6 +381,8 @@ struct RolloutIWPlanner : Planner {
                 ++num_cases_[2];
                 node->remove_children();
                 node->reward_ = -std::numeric_limits<float>::infinity();
+                seen_rewards.second = true;
+                if( debug_ ) logos_ << "-" << std::flush;
                 node->solve_and_backpropagate_label();
                 //logos_ << "X" << node->depth_ << std::flush;
                 break;

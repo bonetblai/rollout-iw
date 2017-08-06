@@ -130,7 +130,7 @@ struct RolloutIWPlanner : Planner {
         // novelty table and other vars
         std::map<int, std::vector<int> > novelty_table_map;
         //std::vector<int> novelty_table(num_tracked_atoms_, std::numeric_limits<int>::max());
-        std::pair<bool, bool> seen_rewards(false, false);
+        std::set<std::pair<bool, bool> > rewards_seen;
 
         // construct root node
         assert((root == nullptr) || (root->action_ == prefix.back()));
@@ -158,9 +158,11 @@ struct RolloutIWPlanner : Planner {
             root->parent_->solved_ = false;
             while( !root->solved_ && (elapsed_time < online_budget_) ) {
                 if( debug_ ) logos_ << '.' << std::flush;
-                rollout(prefix, root, level, max_depth_, max_rep_, alpha_, novelty_table_map, seen_rewards);
+                std::pair<bool, bool> rewards_seen_in_rollout;
+                rollout(prefix, root, level, max_depth_, max_rep_, alpha_, novelty_table_map, rewards_seen_in_rollout);
+                rewards_seen.insert(rewards_seen_in_rollout);
 #if 0
-                if( seen_rewards.first && !seen_rewards.second ) {
+                if( rewards_seen.first && !rewards_seen.second ) {
                     root->backup_values(discount_);
                     assert(root->value_ > 0);
                     const Node *tip_node = root->best_tip_node(discount_);
@@ -182,7 +184,7 @@ struct RolloutIWPlanner : Planner {
         assert(!root->children_.empty());
         root->backup_values(discount_);
         root->calculate_height();
-        assert(!seen_rewards.first || seen_rewards.second || (root->value_ > 0));
+        assert((rewards_seen.find(std::make_pair(true, false)) == rewards_seen.end()) || (root->value_ > 0));
 
         // print info about root node
         if( true || debug_ ) {
@@ -263,9 +265,9 @@ struct RolloutIWPlanner : Planner {
                  size_t max_rep,
                  float alpha,
                  std::map<int, std::vector<int> > &novelty_table_map,
-                 std::pair<bool, bool> &seen_rewards) const {
+                 std::pair<bool, bool> &rewards_seen) const {
         ++num_rollouts_;
-        seen_rewards = std::pair<bool, bool>(false, false);
+        rewards_seen = std::pair<bool, bool>(false, false);
 
         // apply prefix
         //apply_prefix(sim_, initial_sim_state_, prefix);
@@ -342,10 +344,10 @@ struct RolloutIWPlanner : Planner {
 
             // report non-zero rewards
             if( node->reward_ > 0 ) {
-                seen_rewards.first = true;
+                rewards_seen.first = true;
                 if( debug_ ) logos_ << Utils::yellow() << "+" << Utils::normal() << std::flush;
             } else if( node->reward_ < 0 ) {
-                seen_rewards.second = true;
+                rewards_seen.second = true;
                 if( debug_ ) logos_ << "-" << std::flush;
             }
 
@@ -381,7 +383,7 @@ struct RolloutIWPlanner : Planner {
                 ++num_cases_[2];
                 node->remove_children();
                 node->reward_ = -std::numeric_limits<float>::infinity();
-                seen_rewards.second = true;
+                rewards_seen.second = true;
                 if( debug_ ) logos_ << "-" << std::flush;
                 node->solve_and_backpropagate_label();
                 //logos_ << "X" << node->depth_ << std::flush;
@@ -457,13 +459,13 @@ struct RolloutIWPlanner : Planner {
 
         // perform extra look ahead at tip to see whether positive reward can be assured
         std::vector<Action> empty_prefix;
-        std::pair<bool, bool> seen_rewards(false, false);
+        std::pair<bool, bool> rewards_seen(false, false);
         std::map<std::pair<std::string, Action>, std::string> seen_transitions;
         std::vector<int> novelty_table(num_tracked_atoms_, std::numeric_limits<int>::max());
         while( !node->solved_ ) {
             if( true || debug_ ) logos_ << '#' << std::flush;
             set_state(sim_, tip_state);
-            rollout(empty_prefix, node, max_depth, max_rep, alpha, novelty_table, seen_rewards, seen_transitions);
+            rollout(empty_prefix, node, max_depth, max_rep, alpha, novelty_table, rewards_seen, seen_transitions);
         }
         if( true || debug_ ) logos_ << std::endl;
     }

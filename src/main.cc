@@ -8,6 +8,7 @@
 #include <ale_interface.hpp>
 
 #include "planner.h"
+#include "bfsIW.h"
 #include "rolloutIW.h"
 #include "utils.h"
 
@@ -70,8 +71,8 @@ run_trial(ALEInterface &env, ostream &logos, const Planner &planner, bool execut
     return make_pair(total_reward, make_pair(decision, frame));
 }
 
-void parse_action_sequence(const string &action_sequence, vector<Action> &actions) {
-    boost::tokenizer<> tok(action_sequence);
+void parse_action_sequence(const string &fixed_action_sequence, vector<Action> &actions) {
+    boost::tokenizer<> tok(fixed_action_sequence);
     for( boost::tokenizer<>::iterator it = tok.begin(); it != tok.end(); ++it )
         actions.push_back(static_cast<Action>(atoi(it->c_str())));
 }
@@ -98,65 +99,97 @@ void print_options(ostream &os, const po::variables_map &opt_varmap) {
 
 void usage(ostream &os, const po::options_description &opt_desc) {
     os << Utils::magenta() << "Usage:" << Utils::normal()
-       << " rollout <option>* <rom>" << endl
+       << " rom_planner <option>* <rom>" << endl
        << endl
        << opt_desc
        << endl;
 }
 
 int main(int argc, char **argv) {
-    // parameters
-    bool use_minimal_action_set = false;
-    int frameskip;
+    // general options
     int random_seed;
+    bool debug = false;
+    int frameskip;
     bool display = true;
     bool sound = false;
     string rec_dir;
     string rec_sound_filename;
+    bool use_minimal_action_set = false;
+
+    // number of episodes and execution length
+    int num_episodes;
+    int max_execution_length_in_frames;
+
+    // simulate previous execution
+    string fixed_action_sequence;
+
+    // rom and log files
+    string log_file;
+    string atari_rom;
+
+    // features
     int screen_features;
+    int num_frames_for_background_image;
+
+    // options for online execution
+    float online_budget;
+    bool execute_single_action = false;
+
+    // planner
+    string planner_str;
+
+    // options for rollout planner
+    bool novelty_subtables = false;
     bool feature_stratification = false;
     int max_depth;
     int max_rep;
     float discount;
     float alpha;
-    bool debug = false;
-    int num_episodes;
-    int max_execution_length_in_frames;
-    int num_frames_for_background_image;
-    string action_sequence;
-    bool execute_single_action = false;
-    float online_budget;
-    bool novelty_subtables = false;
-    string log_file;
-    string atari_rom;
 
     // declare supported options
     po::options_description opt_desc("Allowed options");
     opt_desc.add_options()
+      // general options
       ("help", "help message")
-      ("minimal-action-set", "turn on minimal action set instead of larger legal action set")
-      ("frameskip", po::value<int>(&frameskip)->default_value(5), "set frame skip rate")
       ("seed", po::value<int>(&random_seed)->default_value(0), "set random seed")
+      ("debug", "turn on debug (default is off)")
+      ("frameskip", po::value<int>(&frameskip)->default_value(5), "set frame skip rate")
       ("nodisplay", "turn off display (default is display)")
       ("sound", "turn on sound (default is no sound)")
       ("rec-dir", po::value<string>(&rec_dir), "set folder for recording (default is \"\" for no recording)")
       ("rec-sound-filename", po::value<string>(&rec_sound_filename), "set filename for recording sound (default is \"\" for no recording)")
+      ("minimal-action-set", "turn on minimal action set instead of larger legal action set")
+
+      // number of episodes and execution length
+      ("num-episodes", po::value<int>(&num_episodes)->default_value(1), "set number of episodes (default is 1)")
+      ("max-execution-length", po::value<int>(&max_execution_length_in_frames)->default_value(18000), "set max number of frames in single execution (default is 18k frames)")
+
+      // simulate previous execution
+      ("fixed-action-sequence", po::value<string>(&fixed_action_sequence), "pass fixed action sequence that provides actions (default is \"\" for no such sequence")
+
+      // rom and log files
+      ("log-file", po::value<string>(&log_file), "set path to log file (default is \"\" for no logging)")
+      ("rom", po::value<string>(&atari_rom), "set Atari ROM")
+
+      // features
       ("features", po::value<int>(&screen_features)->default_value(0), "set feature set: 0=RAM, 1=basic, 2=basic+B-PROS, 3=basic+B-PROS+B-PROT (default is 0)")
+      ("frames-background-image", po::value<int>(&num_frames_for_background_image)->default_value(100), "set number of random frames to compute background image (default is 100 frames)")
+      // options for online execution
+      ("online-budget", po::value<float>(&online_budget)->default_value(numeric_limits<float>::infinity()), "set time budget for online decision making (default is infinite)")
+      ("execute-single-action", "execute only one action from best branch in lookahead (default is to execute prefix until first reward")
+
+      // planner
+      ("planner", po::value<string>(&planner_str)->default_value(string("rollout")), "set planner, either 'rollout' or 'bfs'")
+
+      // options for rollout planner
+      ("novelty-subtables", "turn on use of novelty subtables (default is to use single table)")
       ("feature-stratification", "turn on feature stratification (default is off)")
       ("max-depth", po::value<int>(&max_depth)->default_value(1500), "set max depth for lookahead (default is 1500)")
       ("max-rep", po::value<int>(&max_rep), "set max rep(etition) of screen features during lookahead (default is 30 frames")
       ("discount", po::value<float>(&discount)->default_value(1.0), "set discount factor for lookahead (default is 1.0)")
       ("alpha", po::value<float>(&alpha)->default_value(10000.0), "set alpha value for lookahead (default is 10,000)")
-      ("debug", "turn on debug (default is off)")
-      ("num-episodes", po::value<int>(&num_episodes)->default_value(1), "set number of episodes (default is 1)")
-      ("max-execution-length", po::value<int>(&max_execution_length_in_frames)->default_value(18000), "set max number of frames in single execution (default is 18k frames)")
-      ("frames-background-image", po::value<int>(&num_frames_for_background_image)->default_value(100), "set number of random frames to compute background image (default is 100 frames)")
-      ("action-sequence", po::value<string>(&action_sequence), "pass fixed action sequence that provides actions (default is \"\" for no such sequence")
-      ("online-budget", po::value<float>(&online_budget)->default_value(numeric_limits<float>::infinity()), "set time budget for online decision making (default is infinite)")
-      ("novelty-subtables", "turn on use of novelty subtables (default is to use single table)")
-      ("execute-single-action", "execute only one action from best branch in lookahead (default is to execute prefix until first reward")
-      ("log-file", po::value<string>(&log_file), "set path to log file (default is \"\" for no logging)")
-      ("rom", po::value<string>(&atari_rom), "set Atari ROM")
+
+      // optiosn for bfs planner
     ;
 
     po::positional_options_description opt_pos;
@@ -245,33 +278,44 @@ int main(int argc, char **argv) {
 
     // construct planner
     Planner *planner = nullptr;
-    if( action_sequence == "" ) {
-        size_t num_tracked_atoms = 0;
-        if( screen_features == 0 ) { // RAM mode
-            num_tracked_atoms = 128 * 256; // this is for RAM: 128 8-bit entries
-        } else {
-            num_tracked_atoms = 16 * 14 * 128; // 28,672
-            num_tracked_atoms += screen_features > 1 ? 6856768 : 0;
-            num_tracked_atoms += screen_features > 2 ? 13713408 : 0;
-        }
-        planner = new RolloutIWPlanner(sim,
-                                       *logos,
-                                       use_minimal_action_set,
-                                       frameskip,
-                                       online_budget,
-                                       novelty_subtables,
-                                       screen_features,
-                                       feature_stratification,
-                                       num_tracked_atoms,
-                                       max_depth,
-                                       max_rep,
-                                       discount,
-                                       alpha,
-                                       debug);
-    } else {
+    if( fixed_action_sequence != "" ) {
         vector<Action> actions;
-        parse_action_sequence(action_sequence, actions);
+        parse_action_sequence(fixed_action_sequence, actions);
         planner = new FixedPlanner(actions);
+    } else {
+        if( planner_str == "rollout" ) {
+            size_t num_tracked_atoms = 0;
+            if( screen_features == 0 ) { // RAM mode
+                num_tracked_atoms = 128 * 256; // this is for RAM: 128 8-bit entries
+            } else {
+                num_tracked_atoms = 16 * 14 * 128; // 28,672
+                num_tracked_atoms += screen_features > 1 ? 6856768 : 0;
+                num_tracked_atoms += screen_features > 2 ? 13713408 : 0;
+            }
+            planner = new RolloutIW(sim,
+                                    *logos,
+                                    use_minimal_action_set,
+                                    frameskip,
+                                    online_budget,
+                                    novelty_subtables,
+                                    screen_features,
+                                    feature_stratification,
+                                    num_tracked_atoms,
+                                    max_depth,
+                                    max_rep,
+                                    discount,
+                                    alpha,
+                                    debug);
+        } else if( planner_str == "bfs" ) {
+            planner = new BfsIW(sim,
+                                *logos,
+                                use_minimal_action_set,
+                                frameskip,
+                                debug);
+        } else {
+            *logos << Utils::error() << " inexistent planner '" << planner_str << "'" << endl;
+            exit(1);
+        }
     }
     assert(planner != nullptr);
     *logos << "planner=" << planner->name() << endl;

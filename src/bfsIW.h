@@ -1,7 +1,7 @@
 // (c) 2017 Blai Bonet
 
-#ifndef ROLLOUT_IW_H
-#define ROLLOUT_IW_H
+#ifndef BFS_IW_H
+#define BFS_IW_H
 
 #include <cassert>
 #include <iostream>
@@ -15,12 +15,13 @@
 #include "screen.h"
 #include "utils.h"
 
-struct RolloutIW : Planner {
+struct BfsIW : Planner {
     ALEInterface &sim_;
 
     std::ostream &logos_;
     const bool use_minimal_action_set_;
     const size_t frameskip_;
+#if 0
     const float online_budget_;
     const bool novelty_subtables_;
     const int screen_features_type_;
@@ -30,12 +31,14 @@ struct RolloutIW : Planner {
     const size_t max_rep_;;
     const float discount_;
     const float alpha_;
+#endif
     const bool debug_;
 
     ALEState initial_sim_state_;
     ActionVect minimal_action_set_;
     ActionVect legal_action_set_;
 
+#if 0
     mutable float best_global_reward_;
     mutable size_t simulator_calls_;
     mutable size_t num_rollouts_;
@@ -43,32 +46,38 @@ struct RolloutIW : Planner {
     mutable size_t num_cases_[4];
     mutable float total_time_;
     mutable float simulator_time_;
+#endif
     mutable float reset_time_;
     mutable float get_set_state_time_;
+#if 0
     mutable float update_novelty_time_;
     mutable size_t get_atoms_calls_;
     mutable float get_atoms_time_;
     mutable float novel_atom_time_;
     mutable float expand_time_;
+#endif
 
-    RolloutIW(ALEInterface &sim,
-              std::ostream &logos,
-              bool use_minimal_action_set,
-              size_t frameskip,
-              float online_budget,
-              bool novelty_subtables,
-              int screen_features_type,
-              bool feature_stratification,
-              size_t num_tracked_atoms,
-              size_t max_depth,
-              size_t max_rep,
-              float discount,
-              float alpha,
-              bool debug = false)
+    BfsIW(ALEInterface &sim,
+          std::ostream &logos,
+          bool use_minimal_action_set,
+          size_t frameskip,
+#if 0
+          float online_budget,
+          bool novelty_subtables,
+          int screen_features_type,
+          bool feature_stratification,
+          size_t num_tracked_atoms,
+          size_t max_depth,
+          size_t max_rep,
+          float discount,
+          float alpha,
+#endif
+          bool debug = false)
       : sim_(sim),
         logos_(logos),
         use_minimal_action_set_(use_minimal_action_set),
         frameskip_(frameskip),
+#if 0
         online_budget_(online_budget),
         novelty_subtables_(novelty_subtables),
         screen_features_type_(screen_features_type),
@@ -78,6 +87,7 @@ struct RolloutIW : Planner {
         max_rep_(max_rep),
         discount_(discount),
         alpha_(alpha),
+#endif
         debug_(debug) {
         //static_assert(std::numeric_limits<float>::is_iec559, "IEEE 754 required");
         assert(sim_.getInt("frame_skip") == frameskip_);
@@ -88,9 +98,10 @@ struct RolloutIW : Planner {
     }
 
     virtual std::string name() const {
-        return std::string("rollout(")
+        return std::string("bfs(")
           + "minimal-action-set=" + std::to_string(use_minimal_action_set_)
           + ",frameskip=" + std::to_string(frameskip_)
+#if 0
           + ",online-budget=" + std::to_string(online_budget_)
           + ",features=" + std::to_string(screen_features_type_)
           + ",stratification=" + std::to_string(feature_stratification_)
@@ -98,6 +109,7 @@ struct RolloutIW : Planner {
           + ",max-rep=" + std::to_string(max_rep_)
           + ",discount=" + std::to_string(discount_)
           + ",alpha=" + std::to_string(alpha_)
+#endif
           + ",debug=" + std::to_string(debug_)
           + ")";
     }
@@ -114,6 +126,7 @@ struct RolloutIW : Planner {
                              Node *root,
                              float last_reward,
                              std::deque<Action> &branch) const {
+#if 0
         assert(!prefix.empty());
         logos_ << "**** get branch ****" << std::endl;
         logos_ << "prefix: sz=" << prefix.size() << ", actions=";
@@ -257,8 +270,11 @@ struct RolloutIW : Planner {
 
         // return root node
         return root;
+#endif
+        return 0;
     }
 
+#if 0
     void rollout(const std::vector<Action> &prefix,
                  Node *root,
                  int screen_features_level,
@@ -425,53 +441,6 @@ struct RolloutIW : Planner {
             best_global_reward_ = node->path_reward_;
     }
 
-#if 0
-    bool do_random_lookahead_below_node(const Node *node, size_t num_random_probes, size_t max_depth_random_probe) const {
-        assert(node->children_.empty());
-        ALEState node_state;
-        get_state(sim_, node_state);
-        for( size_t k = 0; k < num_random_probes; ++k ) {
-            set_state(sim_, node_state);
-            for( size_t depth = 0; depth < max_depth_random_probe; ++depth ) {
-                Action action = random_action();
-                float reward = call_simulator(sim_, action);
-                if( reward < 0 ) return false;
-            }
-        }
-        return true;
-    }
-
-    void do_lookahead_at_branch_tip(Node *node, const ALEState &sim_state, const std::deque<Action> &branch, size_t max_depth, size_t max_rep, float alpha) const {
-        ALEState tip_state = sim_state;
-        set_state(sim_, tip_state);
-
-        // go down to tip node in branch
-        for( size_t index = 0; node->children_.empty(); ++index ) {
-            assert(index < branch.size());
-            const Action &action = branch[index];
-            call_simulator(sim_, action);
-            for( size_t k = 0; k < node->children_.size(); ++k ) {
-                if( node->children_[k]->action_ == action ) {
-                    node = node->children_[k];
-                    break;
-                }
-            }
-        }
-
-        // perform extra look ahead at tip to see whether positive reward can be assured
-        std::vector<Action> empty_prefix;
-        std::pair<bool, bool> rewards_seen(false, false);
-        std::map<std::pair<std::string, Action>, std::string> seen_transitions;
-        std::vector<int> novelty_table(num_tracked_atoms_, std::numeric_limits<int>::max());
-        while( !node->solved_ ) {
-            if( true || debug_ ) logos_ << '#' << std::flush;
-            set_state(sim_, tip_state);
-            rollout(empty_prefix, node, max_depth, max_rep, alpha, novelty_table, rewards_seen, seen_transitions);
-        }
-        if( true || debug_ ) logos_ << std::endl;
-    }
-#endif
-
     void get_atoms(const Node *node, int screen_features_level) const {
         assert(node->feature_atoms_.empty());
         ++get_atoms_calls_;
@@ -605,6 +574,7 @@ struct RolloutIW : Planner {
     bool terminal_state(ALEInterface &ale) const {
         return ale.game_over();
     }
+#endif
 
     void get_state(ALEInterface &ale, ALEState &ale_state) const {
         float start_time = Utils::read_time_in_seconds();
@@ -613,6 +583,7 @@ struct RolloutIW : Planner {
         get_set_state_time_ += Utils::read_time_in_seconds() - start_time;
     }
 
+#if 0
     void set_state(ALEInterface &ale, const ALEState &ale_state) const {
         float start_time = Utils::read_time_in_seconds();
         //ale.restoreSystemState(ale_state); // CHECK
@@ -623,6 +594,7 @@ struct RolloutIW : Planner {
         set_state(ale, ale_state);
         call_simulator(ale, action);
     }
+#endif
 
     void reset_game(ALEInterface &ale) const {
         float start_time = Utils::read_time_in_seconds();
@@ -630,6 +602,7 @@ struct RolloutIW : Planner {
         reset_time_ += Utils::read_time_in_seconds() - start_time;
     }
 
+#if 0
     const ALERAM& get_ram(ALEInterface &ale) const {
         return ale.getRAM();
     }
@@ -702,6 +675,7 @@ struct RolloutIW : Planner {
             os << prefix[k] << ",";
         os << "]" << std::flush;
     }
+#endif
 };
 
 #endif

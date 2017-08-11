@@ -568,7 +568,6 @@ struct RolloutIW : Planner {
         }
         update_novelty_time_ += Utils::read_time_in_seconds() - start_time;
     }
-
     size_t num_entries(const std::vector<int> &novelty_table) const {
         assert(novelty_table.size() == num_tracked_atoms_);
         size_t n = 0;

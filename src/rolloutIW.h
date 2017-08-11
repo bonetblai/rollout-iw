@@ -27,7 +27,7 @@ struct RolloutIW : Planner {
     const bool feature_stratification_;
     const size_t num_tracked_atoms_;
     const size_t max_depth_;
-    const size_t max_rep_;;
+    const size_t max_rep_;
     const float discount_;
     const float alpha_;
     const bool debug_;
@@ -115,7 +115,8 @@ struct RolloutIW : Planner {
                              float last_reward,
                              std::deque<Action> &branch) const {
         assert(!prefix.empty());
-        logos_ << "**** get branch ****" << std::endl;
+
+        logos_ << "**** rollout: get branch ****" << std::endl;
         logos_ << "prefix: sz=" << prefix.size() << ", actions=";
         print_prefix(logos_, prefix);
         logos_ << std::endl;
@@ -618,10 +619,6 @@ struct RolloutIW : Planner {
         //ale.restoreSystemState(ale_state); // CHECK
         ale.restoreState(ale_state);
         get_set_state_time_ += Utils::read_time_in_seconds() - start_time;
-    }
-    void set_state(ALEInterface &ale, const ALEState &ale_state, Action action) const {
-        set_state(ale, ale_state);
-        call_simulator(ale, action);
     }
 
     void reset_game(ALEInterface &ale) const {

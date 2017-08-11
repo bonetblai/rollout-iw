@@ -19,17 +19,17 @@ struct RolloutIW : Planner {
     ALEInterface &sim_;
 
     std::ostream &logos_;
-    const bool use_minimal_action_set_;
     const size_t frameskip_;
+    const bool use_minimal_action_set_;
+    const size_t num_tracked_atoms_;
+    const int screen_features_type_;
     const float online_budget_;
     const bool novelty_subtables_;
-    const int screen_features_type_;
-    const bool feature_stratification_;
-    const size_t num_tracked_atoms_;
-    const size_t max_depth_;
     const size_t max_rep_;
     const float discount_;
     const float alpha_;
+    const bool feature_stratification_;
+    const size_t max_depth_;
     const bool debug_;
 
     ALEState initial_sim_state_;
@@ -53,31 +53,31 @@ struct RolloutIW : Planner {
 
     RolloutIW(ALEInterface &sim,
               std::ostream &logos,
-              bool use_minimal_action_set,
               size_t frameskip,
+              bool use_minimal_action_set,
+              size_t num_tracked_atoms,
+              int screen_features_type,
               float online_budget,
               bool novelty_subtables,
-              int screen_features_type,
-              bool feature_stratification,
-              size_t num_tracked_atoms,
-              size_t max_depth,
               size_t max_rep,
               float discount,
               float alpha,
+              bool feature_stratification,
+              size_t max_depth,
               bool debug = false)
       : sim_(sim),
         logos_(logos),
-        use_minimal_action_set_(use_minimal_action_set),
         frameskip_(frameskip),
+        use_minimal_action_set_(use_minimal_action_set),
+        num_tracked_atoms_(num_tracked_atoms),
+        screen_features_type_(screen_features_type),
         online_budget_(online_budget),
         novelty_subtables_(novelty_subtables),
-        screen_features_type_(screen_features_type),
-        feature_stratification_(feature_stratification),
-        num_tracked_atoms_(num_tracked_atoms),
-        max_depth_(max_depth),
         max_rep_(max_rep),
         discount_(discount),
         alpha_(alpha),
+        feature_stratification_(feature_stratification),
+        max_depth_(max_depth),
         debug_(debug) {
         //static_assert(std::numeric_limits<float>::is_iec559, "IEEE 754 required");
         assert(sim_.getInt("frame_skip") == frameskip_);
@@ -89,15 +89,16 @@ struct RolloutIW : Planner {
 
     virtual std::string name() const {
         return std::string("rollout(")
-          + "minimal-action-set=" + std::to_string(use_minimal_action_set_)
-          + ",frameskip=" + std::to_string(frameskip_)
-          + ",online-budget=" + std::to_string(online_budget_)
+          + "frameskip=" + std::to_string(frameskip_)
+          + ",minimal-action-set=" + std::to_string(use_minimal_action_set_)
           + ",features=" + std::to_string(screen_features_type_)
-          + ",stratification=" + std::to_string(feature_stratification_)
-          + ",max-depth=" + std::to_string(max_depth_)
+          + ",online-budget=" + std::to_string(online_budget_)
+          + ",novelty-subtables=" + std::to_string(novelty_subtables_)
           + ",max-rep=" + std::to_string(max_rep_)
           + ",discount=" + std::to_string(discount_)
           + ",alpha=" + std::to_string(alpha_)
+          + ",stratification=" + std::to_string(feature_stratification_)
+          + ",max-depth=" + std::to_string(max_depth_)
           + ",debug=" + std::to_string(debug_)
           + ")";
     }
@@ -188,7 +189,7 @@ struct RolloutIW : Planner {
         assert(!root->children_.empty());
         root->backup_values(discount_);
         root->calculate_height();
-        assert((rewards_seen.find(std::make_pair(true, false)) == rewards_seen.end()) || (root->value_ > 0));
+        //assert((rewards_seen.find(std::make_pair(true, false)) == rewards_seen.end()) || (root->value_ > 0));
 
         // print info about root node
         if( true || debug_ ) {

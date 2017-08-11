@@ -138,13 +138,18 @@ int main(int argc, char **argv) {
     // planner
     string planner_str;
 
-    // options for rollout planner
+    // options for both planners
     bool novelty_subtables = false;
-    bool feature_stratification = false;
-    int max_depth;
     int max_rep;
     float discount;
     float alpha;
+
+    // options for rollout planner
+    bool feature_stratification = false;
+    int max_depth;
+
+    // options for bfs planner
+    bool break_ties_using_rewards = false;
 
     // declare supported options
     po::options_description opt_desc("Allowed options");
@@ -174,22 +179,24 @@ int main(int argc, char **argv) {
       // features
       ("features", po::value<int>(&screen_features)->default_value(0), "set feature set: 0=RAM, 1=basic, 2=basic+B-PROS, 3=basic+B-PROS+B-PROT (default is 0)")
       ("frames-background-image", po::value<int>(&num_frames_for_background_image)->default_value(100), "set number of random frames to compute background image (default is 100 frames)")
+
       // options for online execution
       ("online-budget", po::value<float>(&online_budget)->default_value(numeric_limits<float>::infinity()), "set time budget for online decision making (default is infinite)")
       ("execute-single-action", "execute only one action from best branch in lookahead (default is to execute prefix until first reward")
 
-      // planner
+      // planners
       ("planner", po::value<string>(&planner_str)->default_value(string("rollout")), "set planner, either 'rollout' or 'bfs'")
-
-      // options for rollout planner
       ("novelty-subtables", "turn on use of novelty subtables (default is to use single table)")
-      ("feature-stratification", "turn on feature stratification (default is off)")
-      ("max-depth", po::value<int>(&max_depth)->default_value(1500), "set max depth for lookahead (default is 1500)")
       ("max-rep", po::value<int>(&max_rep)->default_value(30), "set max rep(etition) of screen features during lookahead (default is 30 frames)")
       ("discount", po::value<float>(&discount)->default_value(1.0), "set discount factor for lookahead (default is 1.0)")
       ("alpha", po::value<float>(&alpha)->default_value(10000.0), "set alpha value for lookahead (default is 10,000)")
 
+      // options for rollout planner
+      ("feature-stratification", "turn on feature stratification (default is off)")
+      ("max-depth", po::value<int>(&max_depth)->default_value(1500), "set max depth for lookahead (default is 1500)")
+
       // optiosn for bfs planner
+      ("break-ties-using-rewards", "break ties in favor of better rewards during bfs (default is no tie breaking)")
     ;
 
     po::positional_options_description opt_pos;
@@ -206,25 +213,18 @@ int main(int argc, char **argv) {
     }
 
     // set default values
-    ostream *logos = &cout;;
-    if( opt_varmap.count("use-minimal-action-set") )
-        use_minimal_action_set = true;
-    if( opt_varmap.count("nodisplay") )
-        display = false;
-    if( opt_varmap.count("sound") )
-        sound = true;
-    if( opt_varmap.count("feature-stratification") )
-        feature_stratification = true;
-    if( opt_varmap.count("debug") )
-        debug = true;
-    if( opt_varmap.count("execute-single-action") )
-        execute_single_action = true;
-    if( opt_varmap.count("novelty-subtables") )
-        novelty_subtables = true;
-    if( opt_varmap.count("log-file") ) {
-        cout << "logging: file=" << log_file << endl;
+    debug = opt_varmap.count("debug");
+    display = !opt_varmap.count("nodisplay");
+    sound = opt_varmap.count("sound");
+    use_minimal_action_set = opt_varmap.count("use-minimal-action-set");
+    execute_single_action = opt_varmap.count("execute-single-action");
+    novelty_subtables = opt_varmap.count("novelty-subtables");
+    feature_stratification = opt_varmap.count("feature-stratification");
+    break_ties_using_rewards = opt_varmap.count("break-ties-using-rewards");
+
+    ostream *logos = &cout;
+    if( opt_varmap.count("log-file") )
         logos = new ofstream(log_file);
-    }
 
     // check whether there is something to be done
     if( opt_varmap.count("help") || (atari_rom == "") ) {
@@ -293,29 +293,31 @@ int main(int argc, char **argv) {
         if( planner_str == "rollout" ) {
             planner = new RolloutIW(sim,
                                     *logos,
-                                    use_minimal_action_set,
                                     frameskip,
+                                    use_minimal_action_set,
+                                    num_tracked_atoms,
+                                    screen_features,
                                     online_budget,
                                     novelty_subtables,
-                                    screen_features,
-                                    feature_stratification,
-                                    num_tracked_atoms,
-                                    max_depth,
                                     max_rep,
                                     discount,
                                     alpha,
+                                    feature_stratification,
+                                    max_depth,
                                     debug);
         } else if( planner_str == "bfs" ) {
             planner = new BfsIW(sim,
                                 *logos,
-                                use_minimal_action_set,
                                 frameskip,
-                                novelty_subtables,
-                                screen_features,
+                                use_minimal_action_set,
                                 num_tracked_atoms,
+                                screen_features,
+                                online_budget,
+                                novelty_subtables,
                                 max_rep,
                                 discount,
                                 alpha,
+                                break_ties_using_rewards,
                                 debug);
         } else {
             *logos << Utils::error() << " inexistent planner '" << planner_str << "'" << endl;

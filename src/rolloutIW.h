@@ -116,12 +116,13 @@ struct RolloutIW : Planner {
                              std::deque<Action> &branch) const {
         assert(!prefix.empty());
 
-        logos_ << "**** rollout: get branch ****" << std::endl;
+        logos_ << Utils::red() << "**** rollout: get branch ****" << Utils::normal() << std::endl;
         logos_ << "prefix: sz=" << prefix.size() << ", actions=";
         print_prefix(logos_, prefix);
         logos_ << std::endl;
         logos_ << "input:"
-               << " #nodes=" << (root == nullptr ? 0 : root->num_nodes())
+               << " #nodes=" << (root == nullptr ? "na" : std::to_string(root->num_nodes()))
+               << ", #tips=" << (root == nullptr ? "na" : std::to_string(root->num_tip_nodes()))
                << ", height=" << (root == nullptr ? "na" : std::to_string(root->height_))
                << std::endl;
 
@@ -145,8 +146,9 @@ struct RolloutIW : Planner {
         assert(root->parent_ != nullptr);
         root->parent_->parent_ = nullptr;
 
-        // normalize depths and recompute path rewards
+        // normalize depths, reset rep counters, and recompute path rewards
         root->normalize_depth();
+        reset_rep_counter_on_tip_nodes(root);
         root->recompute_path_rewards(root);
 
         // construct lookahead tree
@@ -156,7 +158,7 @@ struct RolloutIW : Planner {
             if( debug_ ) logos_ << Utils::magenta() << "layer:" << Utils::normal() << " level=" << level << ", rollouts=" << std::flush;
 
             // clear solved labels
-            root->clear_solved_labels();
+            clear_solved_labels(root);
             root->parent_->solved_ = false;
             while( !root->solved_ && (elapsed_time < online_budget_) ) {
                 if( debug_ ) logos_ << '.' << std::flush;
@@ -258,6 +260,21 @@ struct RolloutIW : Planner {
 
         // return root node
         return root;
+    }
+
+    void clear_solved_labels(Node *node) const {
+        node->solved_ = false;
+        for( size_t k = 0; k < node->children_.size(); ++k )
+            clear_solved_labels(node->children_[k]);
+    }
+
+    void reset_rep_counter_on_tip_nodes(Node *node) const {
+        if( node->children_.empty() ) {
+            node->frame_rep_ = 0;
+        } else {
+            for( size_t k = 0; k < node->children_.size(); ++k )
+                reset_rep_counter_on_tip_nodes(node->children_[k]);
+        }
     }
 
     void rollout(const std::vector<Action> &prefix,

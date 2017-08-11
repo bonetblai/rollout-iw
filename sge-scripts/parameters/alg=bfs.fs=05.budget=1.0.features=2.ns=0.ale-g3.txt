@@ -1,0 +1,8 @@
+bfs 05 1.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/asterix.bin
+bfs 05 1.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/beam_rider.bin
+bfs 05 1.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/breakout.bin
+bfs 05 1.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/enduro.bin
+bfs 05 1.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/freeway.bin
+bfs 05 1.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/pong.bin
+bfs 05 1.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/qbert.bin
+bfs 05 1.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_3/seaquest.bin

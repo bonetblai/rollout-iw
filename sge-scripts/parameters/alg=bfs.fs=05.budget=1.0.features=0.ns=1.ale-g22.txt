@@ -1,0 +1,8 @@
+bfs 05 1.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2_2/jamesbond.bin
+bfs 05 1.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2_2/kangaroo.bin
+bfs 05 1.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2_2/krull.bin
+bfs 05 1.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2_2/montezuma_revenge.bin
+bfs 05 1.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2_2/ms_pacman.bin
+bfs 05 1.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2_2/name_this_game.bin
+bfs 05 1.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2_2/riverraid.bin
+bfs 05 1.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2_2/robotank.bin

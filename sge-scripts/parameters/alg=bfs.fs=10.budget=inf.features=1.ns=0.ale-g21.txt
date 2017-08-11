@@ -1,0 +1,7 @@
+bfs 10 inf 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/star_gunner.bin
+bfs 10 inf 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/tennis.bin
+bfs 10 inf 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/up_n_down.bin
+bfs 10 inf 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/venture.bin
+bfs 10 inf 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/video_pinball.bin
+bfs 10 inf 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/wizard_of_wor.bin
+bfs 10 inf 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_1/zaxxon.bin

@@ -283,15 +283,16 @@ int main(int argc, char **argv) {
         parse_action_sequence(fixed_action_sequence, actions);
         planner = new FixedPlanner(actions);
     } else {
+        size_t num_tracked_atoms = 0;
+        if( screen_features == 0 ) { // RAM mode
+            num_tracked_atoms = 128 * 256; // this is for RAM: 128 8-bit entries
+        } else {
+            num_tracked_atoms = 16 * 14 * 128; // 28,672
+            num_tracked_atoms += screen_features > 1 ? 6856768 : 0;
+            num_tracked_atoms += screen_features > 2 ? 13713408 : 0;
+        }
+
         if( planner_str == "rollout" ) {
-            size_t num_tracked_atoms = 0;
-            if( screen_features == 0 ) { // RAM mode
-                num_tracked_atoms = 128 * 256; // this is for RAM: 128 8-bit entries
-            } else {
-                num_tracked_atoms = 16 * 14 * 128; // 28,672
-                num_tracked_atoms += screen_features > 1 ? 6856768 : 0;
-                num_tracked_atoms += screen_features > 2 ? 13713408 : 0;
-            }
             planner = new RolloutIW(sim,
                                     *logos,
                                     use_minimal_action_set,
@@ -311,6 +312,12 @@ int main(int argc, char **argv) {
                                 *logos,
                                 use_minimal_action_set,
                                 frameskip,
+                                novelty_subtables,
+                                screen_features,
+                                num_tracked_atoms,
+                                max_rep,
+                                discount,
+                                alpha,
                                 debug);
         } else {
             *logos << Utils::error() << " inexistent planner '" << planner_str << "'" << endl;

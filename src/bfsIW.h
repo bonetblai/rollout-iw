@@ -6,6 +6,7 @@
 #include <cassert>
 #include <iostream>
 #include <map>
+#include <queue>
 #include <string>
 #include <vector>
 #include <ale_interface.hpp>
@@ -23,15 +24,19 @@ struct BfsIW : Planner {
     const size_t frameskip_;
 #if 0
     const float online_budget_;
+#endif
     const bool novelty_subtables_;
     const int screen_features_type_;
+#if 0
     const bool feature_stratification_;
+#endif
     const size_t num_tracked_atoms_;
+#if 0
     const size_t max_depth_;
+#endif
     const size_t max_rep_;;
     const float discount_;
     const float alpha_;
-#endif
     const bool debug_;
 
     ALEState initial_sim_state_;
@@ -40,22 +45,18 @@ struct BfsIW : Planner {
 
 #if 0
     mutable float best_global_reward_;
+#endif
     mutable size_t simulator_calls_;
-    mutable size_t num_rollouts_;
     mutable size_t num_expansions_;
-    mutable size_t num_cases_[4];
     mutable float total_time_;
     mutable float simulator_time_;
-#endif
     mutable float reset_time_;
     mutable float get_set_state_time_;
-#if 0
     mutable float update_novelty_time_;
     mutable size_t get_atoms_calls_;
     mutable float get_atoms_time_;
     mutable float novel_atom_time_;
     mutable float expand_time_;
-#endif
 
     BfsIW(ALEInterface &sim,
           std::ostream &logos,
@@ -63,15 +64,19 @@ struct BfsIW : Planner {
           size_t frameskip,
 #if 0
           float online_budget,
+#endif
           bool novelty_subtables,
           int screen_features_type,
+#if 0
           bool feature_stratification,
+#endif
           size_t num_tracked_atoms,
+#if 0
           size_t max_depth,
+#endif
           size_t max_rep,
           float discount,
           float alpha,
-#endif
           bool debug = false)
       : sim_(sim),
         logos_(logos),
@@ -79,15 +84,19 @@ struct BfsIW : Planner {
         frameskip_(frameskip),
 #if 0
         online_budget_(online_budget),
+#endif
         novelty_subtables_(novelty_subtables),
         screen_features_type_(screen_features_type),
+#if 0
         feature_stratification_(feature_stratification),
+#endif
         num_tracked_atoms_(num_tracked_atoms),
+#if 0
         max_depth_(max_depth),
+#endif
         max_rep_(max_rep),
         discount_(discount),
         alpha_(alpha),
-#endif
         debug_(debug) {
         //static_assert(std::numeric_limits<float>::is_iec559, "IEEE 754 required");
         assert(sim_.getInt("frame_skip") == frameskip_);
@@ -103,13 +112,15 @@ struct BfsIW : Planner {
           + ",frameskip=" + std::to_string(frameskip_)
 #if 0
           + ",online-budget=" + std::to_string(online_budget_)
+#endif
           + ",features=" + std::to_string(screen_features_type_)
+#if 0
           + ",stratification=" + std::to_string(feature_stratification_)
           + ",max-depth=" + std::to_string(max_depth_)
+#endif
           + ",max-rep=" + std::to_string(max_rep_)
           + ",discount=" + std::to_string(discount_)
           + ",alpha=" + std::to_string(alpha_)
-#endif
           + ",debug=" + std::to_string(debug_)
           + ")";
     }
@@ -126,9 +137,9 @@ struct BfsIW : Planner {
                              Node *root,
                              float last_reward,
                              std::deque<Action> &branch) const {
-#if 0
         assert(!prefix.empty());
-        logos_ << "**** get branch ****" << std::endl;
+
+        logos_ << "**** bfs: get branch ****" << std::endl;
         logos_ << "prefix: sz=" << prefix.size() << ", actions=";
         print_prefix(logos_, prefix);
         logos_ << std::endl;
@@ -141,10 +152,8 @@ struct BfsIW : Planner {
         reset_stats();
         float start_time = Utils::read_time_in_seconds();
 
-        // novelty table and other vars
+        // novelty table
         std::map<int, std::vector<int> > novelty_table_map;
-        //std::vector<int> novelty_table(num_tracked_atoms_, std::numeric_limits<int>::max());
-        std::set<std::pair<bool, bool> > rewards_seen;
 
         // construct root node
         assert((root == nullptr) || (root->action_ == prefix.back()));
@@ -163,42 +172,19 @@ struct BfsIW : Planner {
 
         // construct lookahead tree
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
-        int first_level = feature_stratification_ && (screen_features_type_ > 0) ? 1 : screen_features_type_;
-        for( int level = first_level; level <= screen_features_type_; ++level ) {
-            if( debug_ ) logos_ << Utils::magenta() << "layer:" << Utils::normal() << " level=" << level << ", rollouts=" << std::flush;
-
-            // clear solved labels
-            root->clear_solved_labels();
-            root->parent_->solved_ = false;
-            while( !root->solved_ && (elapsed_time < online_budget_) ) {
-                if( debug_ ) logos_ << '.' << std::flush;
-                std::pair<bool, bool> rewards_seen_in_rollout;
-                rollout(prefix, root, level, max_depth_, max_rep_, alpha_, novelty_table_map, rewards_seen_in_rollout);
-                rewards_seen.insert(rewards_seen_in_rollout);
-#if 0
-                if( rewards_seen.first && !rewards_seen.second ) {
-                    root->backup_values(discount_);
-                    assert(root->value_ > 0);
-                    const Node *tip_node = root->best_tip_node(discount_);
-                    bool good_tip = do_random_lookahead_below_node(tip_node, 35, 50);
-                    if( good_tip ) {
-                        logos_ << "%" << std::flush;
-                        break;
-                    } else {
-                        const_cast<Node*>(tip_node)->reward_ = -alpha_;
-                    }
-                }
-#endif
-                elapsed_time = Utils::read_time_in_seconds() - start_time;
-            }
-            if( debug_ ) logos_ << std::endl;
+        root->clear_solved_labels();
+        root->parent_->solved_ = false;
+        while( !root->solved_ ) {
+            if( debug_ ) logos_ << '.' << std::flush;
+            bfs(prefix, root, screen_features_type_, max_rep_, alpha_, novelty_table_map);
+            //rollout(prefix, root, level, max_depth_, max_rep_, alpha_, novelty_table_map, rewards_seen_in_rollout);
         }
+        if( debug_ ) logos_ << std::endl;
 
         // backup values and calculate heights
         assert(!root->children_.empty());
         root->backup_values(discount_);
         root->calculate_height();
-        assert((rewards_seen.find(std::make_pair(true, false)) == rewards_seen.end()) || (root->value_ > 0));
 
         // print info about root node
         if( true || debug_ ) {
@@ -213,35 +199,10 @@ struct BfsIW : Planner {
             logos_ << "]" << Utils::normal() << std::endl;
         }
 
+#if 0
         // compute branch
         if( root->value_ > 0 ) {
             root->best_branch(branch, discount_);
-#if 0
-            size_t branch_size = branch.size();
-            do {
-                float branch_value_before_tip_lookahead = root->value_;
-                //do_lookahead_at_branch_tip(root, sim_state, branch, 10);
-                float branch_value_after_tip_lookahead = root->backup_values_along_branch(branch, discount_);
-                logos_ << "values: branch-before=" << branch_value_before_tip_lookahead
-                       << ", branch-after=" << branch_value_after_tip_lookahead
-                       << ", root=" << root->value_
-                       << std::endl;
-                assert(root->value_ >= branch_value_after_tip_lookahead);
-                if( (branch_value_after_tip_lookahead > 0) || (root->value_ <= 0) ) {
-                    if( branch_value_after_tip_lookahead > 0 ) {
-                        assert(root->value_ > 0);
-                        while( branch.size() > branch_size )
-                            branch.pop_back();
-                    }
-                    break;
-                } else {
-                    assert(root->value_ > 0);
-                    branch.clear();
-                    root->best_branch(branch, discount_);
-                    branch_size = branch.size();
-                }
-            } while( root->value_ > 0 );
-#endif
         }
 
         if( root->value_ == 0 ) {
@@ -262,6 +223,7 @@ struct BfsIW : Planner {
                    << std::endl;
             root->print_branch(logos_, branch);
         }
+#endif
 
         // stop timer and print stats
         total_time_ = Utils::read_time_in_seconds() - start_time;
@@ -270,102 +232,42 @@ struct BfsIW : Planner {
 
         // return root node
         return root;
-#endif
-        return 0;
     }
 
-#if 0
-    void rollout(const std::vector<Action> &prefix,
-                 Node *root,
-                 int screen_features_level,
-                 size_t max_depth,
-                 size_t max_rep,
-                 float alpha,
-                 std::map<int, std::vector<int> > &novelty_table_map,
-                 std::pair<bool, bool> &rewards_seen) const {
-        ++num_rollouts_;
-        rewards_seen = std::pair<bool, bool>(false, false);
+    struct NodeComparator {
+        bool operator()(const Node *n1, const Node *n2) const {
+            return n1->depth_ < n2->depth_;
+        }
+    };
 
-        // apply prefix
-        //apply_prefix(sim_, initial_sim_state_, prefix);
+    void bfs(const std::vector<Action> &prefix,
+             Node *root,
+             int screen_features_level,
+             size_t max_rep,
+             float alpha,
+             std::map<int, std::vector<int> > &novelty_table_map) const {
+        std::priority_queue<Node*, std::vector<Node*>, NodeComparator> q;
+        q.push(root);
+        while( !q.empty() ) {
+            Node *node = q.top();
+            q.pop();
 
-        // update root info
-        if( !root->is_info_valid_ )
-            update_info(root, screen_features_level, alpha);
+            // update node info
+            assert(!node->is_info_valid_);
+            update_info(node, screen_features_level, alpha);
+            assert(node->children_.empty());
+            node->visited_ = true;
 
-        // perform rollout
-        Node *node = root;
-        while( !node->solved_ ) {
-            assert(node->is_info_valid_);
-
-            // if first time at this node, expand node
-            if( node->children_.empty() ) {
-                if( node->frame_rep_ == 0 ) {
-                    ++num_expansions_;
-                    float start_time = Utils::read_time_in_seconds();
-                    if( use_minimal_action_set_ )
-                        node->expand(minimal_action_set_);
-                    else
-                        node->expand(legal_action_set_);
-                    expand_time_ += Utils::read_time_in_seconds() - start_time;
-                } else {
-                    assert((node->parent_ != nullptr) && (screen_features_level > 0));
-                    node->expand(node->action_);
-                }
-                assert(!node->children_.empty());
-            }
-
-            // pick random unsolved child
-            size_t num_unsolved_children = 0;
-            for( size_t k = 0; k < node->children_.size(); ++k )
-                num_unsolved_children += node->children_[k]->solved_ ? 0 : 1;
-            assert(num_unsolved_children > 0);
-            size_t index = lrand48() % num_unsolved_children;
-            for( size_t k = 0; k < node->children_.size(); ++k ) {
-                if( !node->children_[k]->solved_ ) {
-                    if( index == 0 ) {
-                        node = node->children_[k];
-                        break;
-                    }
-                    --index;
-                }
-            }
-
-            // update info
-            if( !node->is_info_valid_ )
-                update_info(node, screen_features_level, alpha);
-
-            // if terminal, label as solved and terminate rollout
+            // check termination at this node
             if( node->terminal_ ) {
-                node->visited_ = true;
-                assert(node->children_.empty());
-                node->solve_and_backpropagate_label();
-                //logos_ << "T[reward=" << node->reward_ << "]" << std::flush;
-                break;
-            }
-
-            // verify repetitions of feature atoms (screen mode)
-            if( node->frame_rep_ > max_rep ) {
-                node->visited_ = true;
-                //node->terminal_ = true;
-                //node->reward_ = -10;
-                assert(node->children_.empty());
-                node->solve_and_backpropagate_label();
-                //logos_ << "R" << std::flush;
-                break;
-            } else if( node->frame_rep_ > 0 ) {
-                node->visited_ = true;
-                //logos_ << "r" << std::flush;
+                //node->solve_and_backpropagate_label();
                 continue;
             }
-
-            // report non-zero rewards
-            if( node->reward_ > 0 ) {
-                rewards_seen.first = true;
-                if( debug_ ) logos_ << Utils::yellow() << "+" << Utils::normal() << std::flush;
-            } else if( node->reward_ < 0 ) {
-                rewards_seen.second = true;
-                if( debug_ ) logos_ << "-" << std::flush;
+                   
+            // verify max repetitions of feature atoms (screen mode)
+            if( node->frame_rep_ > max_rep ) {
+                node->solve_and_backpropagate_label();
+                continue;
             }
 
             // calculate novelty
@@ -373,44 +275,26 @@ struct BfsIW : Planner {
             int atom = get_novel_atom(node->depth_, node->feature_atoms_, novelty_table);
             assert((atom >= 0) && (atom < novelty_table.size()));
 
-            // five cases
-            if( node->depth_ > max_depth ) {
-                node->visited_ = true;
-                assert(node->children_.empty());
-                node->solve_and_backpropagate_label();
-                //logos_ << "D" << std::flush;
-                break;
-            } else if( novelty_table[atom] > node->depth_ ) { // novel => not(visited)
-                //assert(!node->visited_);
-                if( !node->visited_ ) {
-                    ++num_cases_[0];
-                    node->visited_ = true;
-                    update_novelty_table(atom, node->depth_, node->feature_atoms_, novelty_table);
-                    //logos_ << Utils::green() << "n" << Utils::normal() << std::flush;
-                }
-                continue;
-            } else if( !node->visited_ && (novelty_table[atom] <= node->depth_) ) { // not(novel) and not(visited) => PRUNE
-                ++num_cases_[1];
-                node->visited_ = true;
-                assert(node->children_.empty());
-                node->solve_and_backpropagate_label();
-                //logos_ << "x" << node->depth_ << std::flush;
-                break;
-            } else if( node->visited_ && (novelty_table[atom] < node->depth_) ) { // not(novel) and visited => PRUNE
-                ++num_cases_[2];
-                node->remove_children();
-                node->reward_ = -std::numeric_limits<float>::infinity();
-                rewards_seen.second = true;
-                if( debug_ ) logos_ << "-" << std::flush;
-                node->solve_and_backpropagate_label();
-                //logos_ << "X" << node->depth_ << std::flush;
-                break;
-            } else { // optimal and visited => CONTINUE
-                assert(node->visited_ && (novelty_table[atom] == node->depth_));
-                ++num_cases_[3];
-                //logos_ << "c" << std::flush;
-                continue;
+            // prune node using novelty
+            assert(0);
+
+            // update novelty table
+            update_novelty_table(atom, node->depth_, node->feature_atoms_, novelty_table);
+
+            // expand node
+            if( node->frame_rep_ == 0 ) {
+                ++num_expansions_;
+                float start_time = Utils::read_time_in_seconds();
+                if( use_minimal_action_set_ )
+                    node->expand(minimal_action_set_);
+                else
+                    node->expand(legal_action_set_);
+                expand_time_ += Utils::read_time_in_seconds() - start_time;
+            } else {
+                assert((node->parent_ != nullptr) && (screen_features_level > 0));
+                node->expand(node->action_);
             }
+            assert(!node->children_.empty());
         }
     }
 
@@ -435,10 +319,6 @@ struct BfsIW : Planner {
         node->path_reward_ = node->parent_ == nullptr ? 0 : node->parent_->path_reward_;
         node->path_reward_ += node->reward_;
         node->is_info_valid_ = true;
-
-        // update best global reward
-        if( best_global_reward_ < node->path_reward_ )
-            best_global_reward_ = node->path_reward_;
     }
 
     void get_atoms(const Node *node, int screen_features_level) const {
@@ -536,7 +416,6 @@ struct BfsIW : Planner {
         }
         update_novelty_time_ += Utils::read_time_in_seconds() - start_time;
     }
-
     size_t num_entries(const std::vector<int> &novelty_table) const {
         assert(novelty_table.size() == num_tracked_atoms_);
         size_t n = 0;
@@ -574,7 +453,6 @@ struct BfsIW : Planner {
     bool terminal_state(ALEInterface &ale) const {
         return ale.game_over();
     }
-#endif
 
     void get_state(ALEInterface &ale, ALEState &ale_state) const {
         float start_time = Utils::read_time_in_seconds();
@@ -583,18 +461,12 @@ struct BfsIW : Planner {
         get_set_state_time_ += Utils::read_time_in_seconds() - start_time;
     }
 
-#if 0
     void set_state(ALEInterface &ale, const ALEState &ale_state) const {
         float start_time = Utils::read_time_in_seconds();
         //ale.restoreSystemState(ale_state); // CHECK
         ale.restoreState(ale_state);
         get_set_state_time_ += Utils::read_time_in_seconds() - start_time;
     }
-    void set_state(ALEInterface &ale, const ALEState &ale_state, Action action) const {
-        set_state(ale, ale_state);
-        call_simulator(ale, action);
-    }
-#endif
 
     void reset_game(ALEInterface &ale) const {
         float start_time = Utils::read_time_in_seconds();
@@ -602,7 +474,6 @@ struct BfsIW : Planner {
         reset_time_ += Utils::read_time_in_seconds() - start_time;
     }
 
-#if 0
     const ALERAM& get_ram(ALEInterface &ale) const {
         return ale.getRAM();
     }
@@ -617,14 +488,11 @@ struct BfsIW : Planner {
     }
 
     void reset_stats() const {
+#if 0
         best_global_reward_ = 0;
+#endif
         simulator_calls_ = 0;
-        num_rollouts_ = 0;
         num_expansions_ = 0;
-        num_cases_[0] = 0;
-        num_cases_[1] = 0;
-        num_cases_[2] = 0;
-        num_cases_[3] = 0;
         total_time_ = 0;
         simulator_time_ = 0;
         reset_time_ = 0;
@@ -639,8 +507,7 @@ struct BfsIW : Planner {
     void print_stats(std::ostream &os, const Node &root, const std::map<int, std::vector<int> > &novelty_table_map) const {
         os << Utils::red()
            << "stats:"
-           << " #rollouts=" << num_rollouts_
-           << ", #entries=[";
+           << " #entries=[";
 
         for( std::map<int, std::vector<int> >::const_iterator it = novelty_table_map.begin(); it != novelty_table_map.end(); ++it )
             os << it->first << ":" << num_entries(it->second) << "/" << it->second.size() << ",";
@@ -655,7 +522,6 @@ struct BfsIW : Planner {
         os << "]";
 
         os << ", #expansions=" << num_expansions_
-           << ", #cases=[" << num_cases_[0] << "," << num_cases_[1] << "," << num_cases_[2] << "," << num_cases_[3] << "]"
            << ", #sim=" << simulator_calls_
            << ", total-time=" << total_time_
            << ", simulator-time=" << simulator_time_
@@ -675,7 +541,6 @@ struct BfsIW : Planner {
             os << prefix[k] << ",";
         os << "]" << std::flush;
     }
-#endif
 };
 
 #endif

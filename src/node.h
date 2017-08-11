@@ -88,12 +88,6 @@ class Node {
         return child;
     }
 
-    void clear_solved_labels() {
-        solved_ = false;
-        for( size_t k = 0; k < children_.size(); ++k )
-            children_[k]->clear_solved_labels();
-    }
-
     void normalize_depth(int depth = 0) {
         depth_ = depth;
         for( size_t k = 0; k < children_.size(); ++k )

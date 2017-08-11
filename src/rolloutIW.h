@@ -36,7 +36,7 @@ struct RolloutIW : Planner {
     ActionVect minimal_action_set_;
     ActionVect legal_action_set_;
 
-    mutable float best_global_reward_;
+    mutable float best_path_reward_;
     mutable size_t simulator_calls_;
     mutable size_t num_rollouts_;
     mutable size_t num_expansions_;
@@ -422,8 +422,8 @@ struct RolloutIW : Planner {
         node->is_info_valid_ = true;
 
         // update best global reward
-        if( best_global_reward_ < node->path_reward_ )
-            best_global_reward_ = node->path_reward_;
+        if( best_path_reward_ < node->path_reward_ )
+            best_path_reward_ = node->path_reward_;
     }
 
 #if 0
@@ -640,7 +640,7 @@ struct RolloutIW : Planner {
     }
 
     void reset_stats() const {
-        best_global_reward_ = 0;
+        best_path_reward_ = 0;
         simulator_calls_ = 0;
         num_rollouts_ = 0;
         num_expansions_ = 0;

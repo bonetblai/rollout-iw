@@ -43,9 +43,7 @@ struct BfsIW : Planner {
     ActionVect minimal_action_set_;
     ActionVect legal_action_set_;
 
-#if 0
-    mutable float best_global_reward_;
-#endif
+    mutable float best_path_reward_;
     mutable size_t simulator_calls_;
     mutable size_t num_expansions_;
     mutable float total_time_;
@@ -177,7 +175,6 @@ struct BfsIW : Planner {
         while( !root->solved_ ) {
             if( debug_ ) logos_ << '.' << std::flush;
             bfs(prefix, root, screen_features_type_, max_rep_, alpha_, novelty_table_map);
-            //rollout(prefix, root, level, max_depth_, max_rep_, alpha_, novelty_table_map, rewards_seen_in_rollout);
         }
         if( debug_ ) logos_ << std::endl;
 
@@ -319,6 +316,10 @@ struct BfsIW : Planner {
         node->path_reward_ = node->parent_ == nullptr ? 0 : node->parent_->path_reward_;
         node->path_reward_ += node->reward_;
         node->is_info_valid_ = true;
+
+        // update best global reward
+        if( best_path_reward_ < node->path_reward_ )
+            best_path_reward_ = node->path_reward_;
     }
 
     void get_atoms(const Node *node, int screen_features_level) const {
@@ -488,9 +489,7 @@ struct BfsIW : Planner {
     }
 
     void reset_stats() const {
-#if 0
-        best_global_reward_ = 0;
-#endif
+        best_path_reward_ = 0;
         simulator_calls_ = 0;
         num_expansions_ = 0;
         total_time_ = 0;

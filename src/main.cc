@@ -185,7 +185,7 @@ int main(int argc, char **argv) {
       ("novelty-subtables", "turn on use of novelty subtables (default is to use single table)")
       ("feature-stratification", "turn on feature stratification (default is off)")
       ("max-depth", po::value<int>(&max_depth)->default_value(1500), "set max depth for lookahead (default is 1500)")
-      ("max-rep", po::value<int>(&max_rep), "set max rep(etition) of screen features during lookahead (default is 30 frames")
+      ("max-rep", po::value<int>(&max_rep)->default_value(30), "set max rep(etition) of screen features during lookahead (default is 30 frames)")
       ("discount", po::value<float>(&discount)->default_value(1.0), "set discount factor for lookahead (default is 1.0)")
       ("alpha", po::value<float>(&alpha)->default_value(10000.0), "set alpha value for lookahead (default is 10,000)")
 
@@ -217,8 +217,6 @@ int main(int argc, char **argv) {
         feature_stratification = true;
     if( opt_varmap.count("debug") )
         debug = true;
-    if( !opt_varmap.count("max-rep") )
-        max_rep = 60 / frameskip;
     if( opt_varmap.count("execute-single-action") )
         execute_single_action = true;
     if( opt_varmap.count("novelty-subtables") )

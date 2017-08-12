@@ -1,5 +1,5 @@
-rollout 10 2.0 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2/skiing.bin
-rollout 10 2.0 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2/tennis.bin
-rollout 10 2.0 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2/tutankham.bin
-rollout 10 2.0 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2/video_pinball.bin
-rollout 10 2.0 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2/wizard_of_wor.bin
+rollout 10 2.0 1 0 --execute-single-action,--nodisplay ALE-Atari-Width/group_2/skiing.bin
+rollout 10 2.0 1 0 --execute-single-action,--nodisplay ALE-Atari-Width/group_2/tennis.bin
+rollout 10 2.0 1 0 --execute-single-action,--nodisplay ALE-Atari-Width/group_2/tutankham.bin
+rollout 10 2.0 1 0 --execute-single-action,--nodisplay ALE-Atari-Width/group_2/video_pinball.bin
+rollout 10 2.0 1 0 --execute-single-action,--nodisplay ALE-Atari-Width/group_2/wizard_of_wor.bin

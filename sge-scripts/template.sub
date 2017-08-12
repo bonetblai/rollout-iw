@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#$ -N rolloutIW
+#$ -N rom_planner
 # -q default.q
 #$ -cwd
 #$ -o output/OUT
@@ -24,8 +24,9 @@ algorithm=`echo $record | awk '{print $1;}'`
 frameskip=`echo $record | awk '{print $2;}'`
 budget=`echo $record | awk '{print $3;}'`
 features=`echo $record | awk '{print $4;}'`
-options=`echo $record | awk '{print $5;}'`
-rom=`echo $record | awk '{print $6;}'`
+novelty_subtables=`echo $record | awk '{print $5;}'`
+options=`echo $record | awk '{print $6;}'`
+rom=`echo $record | awk '{print $7;}'`
 
 rom_str=${rom//\//_}
 
@@ -35,7 +36,7 @@ output_file=$output_path/output.riw.alg=${algorithm}.fs=${frameskip}.b=${budget}
 mkdir -p $output_path
 
 if [ ! -f "$output_file" ]; then
-    ./experiment.sh $algorithm $frameskip $budget $features $options $rom $output_file
+    ./experiment.sh $algorithm $frameskip $budget $features $novelty_subtables $options $rom $output_file
 else
     echo "Doing nothing since file $output_file exists!"
 fi

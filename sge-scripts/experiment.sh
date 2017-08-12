@@ -15,5 +15,5 @@ ulimit -c 0
 
 options=${raw_options//,/ }
 
-$IW_ROOT/src/rolloutIW --planner $algorithm --frameskip $frameskip --online-budget $budget --features $features --log-file $log_file --rom $IW_ROOT/atari-roms/$rom $options
+$IW_ROOT/src/rom_planner --planner $algorithm --frameskip $frameskip --online-budget $budget --features $features --log-file $log_file --rom $IW_ROOT/atari-roms/$rom $options
 

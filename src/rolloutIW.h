@@ -148,8 +148,9 @@ struct RolloutIW : Planner {
         root->parent_->parent_ = nullptr;
 
         // normalize depths, reset rep counters, and recompute path rewards
+        root->parent_->depth_ = -1;
         root->normalize_depth();
-        reset_rep_counter_on_tip_nodes(root);
+        root->reset_frame_rep_counters(frameskip_);
         root->recompute_path_rewards(root);
 
         // construct lookahead tree
@@ -267,15 +268,6 @@ struct RolloutIW : Planner {
         node->solved_ = false;
         for( size_t k = 0; k < node->children_.size(); ++k )
             clear_solved_labels(node->children_[k]);
-    }
-
-    void reset_rep_counter_on_tip_nodes(Node *node) const {
-        if( node->children_.empty() ) {
-            node->frame_rep_ = 0;
-        } else {
-            for( size_t k = 0; k < node->children_.size(); ++k )
-                reset_rep_counter_on_tip_nodes(node->children_[k]);
-        }
     }
 
     void rollout(const std::vector<Action> &prefix,

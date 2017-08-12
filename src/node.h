@@ -94,6 +94,17 @@ class Node {
             children_[k]->normalize_depth(1 + depth);
     }
 
+    void reset_frame_rep_counters(int frameskip, int parent_frame_rep) {
+        if( frame_rep_ > 0 ) {
+            frame_rep_ = parent_frame_rep + frameskip;
+            for( size_t k = 0; k < children_.size(); ++k )
+                children_[k]->reset_frame_rep_counters(frame_rep_);
+        }
+    }
+    void reset_frame_rep_counters(int frameskip) {
+        reset_frame_rep_counters(frameskip, -frameskip);
+    }
+
     void recompute_path_rewards(const Node *ref = nullptr) {
         if( this == ref ) {
             path_reward_ = reward_;

@@ -157,7 +157,9 @@ struct BfsIW : Planner {
         root->parent_->parent_ = nullptr;
 
         // normalize depths and recompute path rewards
+        root->parent_->depth_ = -1;
         root->normalize_depth();
+        root->reset_frame_rep_counters(frameskip_);
         root->recompute_path_rewards(root);
 
         // construct lookahead tree
@@ -313,7 +315,6 @@ struct BfsIW : Planner {
 
     void add_tip_nodes_to_queue(Node *node, std::priority_queue<Node*, std::vector<Node*>, NodeComparator> &q) const {
         if( node->children_.empty() ) {
-            node->frame_rep_ = 0;
             q.push(node);
         } else {
             for( size_t k = 0; k < node->children_.size(); ++k )

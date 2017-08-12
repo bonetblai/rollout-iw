@@ -1,8 +1,0 @@
-bfs 30 2.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/jamesbond.bin
-bfs 30 2.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/kangaroo.bin
-bfs 30 2.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/krull.bin
-bfs 30 2.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/montezuma_revenge.bin
-bfs 30 2.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/ms_pacman.bin
-bfs 30 2.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/name_this_game.bin
-bfs 30 2.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/riverraid.bin
-bfs 30 2.0 2 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/robotank.bin

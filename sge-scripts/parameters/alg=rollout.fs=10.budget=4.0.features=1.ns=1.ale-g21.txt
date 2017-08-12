@@ -1,7 +1,0 @@
-rollout 10 4.0 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2_1/star_gunner.bin
-rollout 10 4.0 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2_1/tennis.bin
-rollout 10 4.0 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2_1/up_n_down.bin
-rollout 10 4.0 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2_1/venture.bin
-rollout 10 4.0 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2_1/video_pinball.bin
-rollout 10 4.0 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2_1/wizard_of_wor.bin
-rollout 10 4.0 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2_1/zaxxon.bin

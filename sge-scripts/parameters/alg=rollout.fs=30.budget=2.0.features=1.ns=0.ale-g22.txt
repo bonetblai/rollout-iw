@@ -1,8 +1,0 @@
-rollout 30 2.0 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/jamesbond.bin
-rollout 30 2.0 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/kangaroo.bin
-rollout 30 2.0 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/krull.bin
-rollout 30 2.0 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/montezuma_revenge.bin
-rollout 30 2.0 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/ms_pacman.bin
-rollout 30 2.0 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/name_this_game.bin
-rollout 30 2.0 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/riverraid.bin
-rollout 30 2.0 1 --execute-single-action,--nodisplay ALE-Atari-Width/group_2_2/robotank.bin

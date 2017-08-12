@@ -1,8 +1,0 @@
-bfs 15 16.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_3/asterix.bin
-bfs 15 16.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_3/beam_rider.bin
-bfs 15 16.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_3/breakout.bin
-bfs 15 16.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_3/enduro.bin
-bfs 15 16.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_3/freeway.bin
-bfs 15 16.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_3/pong.bin
-bfs 15 16.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_3/qbert.bin
-bfs 15 16.0 0 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_3/seaquest.bin

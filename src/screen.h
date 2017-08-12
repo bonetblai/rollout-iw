@@ -139,7 +139,12 @@ struct MyALEScreen {
     static void compute_background_image(ALEInterface &ale, std::ostream &logos, size_t num_frames, bool debug = false) {
         assert((width_ == ale.getScreen().width()) && (height_ == ale.getScreen().height()));
         float start_time = Utils::read_time_in_seconds();
-        if( debug ) logos << "screen: computing background image... " << std::flush;
+        if( debug ) {
+            logos << Utils::green()
+                  << "screen: computing background image (#frames=" << num_frames << ") ... "
+                  << Utils::normal()
+                  << std::flush;
+        }
 
         minimal_actions_ = ale.getMinimalActionSet();
         minimal_actions_size_ = minimal_actions_.size();
@@ -175,10 +180,11 @@ struct MyALEScreen {
 
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
         if( debug ) {
-            logos << "done in " << elapsed_time << " seconds"
+            logos << Utils::green()
+                  << "done in " << elapsed_time << " seconds"
                   << std::endl
-                  << Utils::blue() << "background:" << Utils::normal()
-                  << " #pixels=" << num_background_pixels_ << "/" << width_ * height_
+                  << "background: #pixels=" << num_background_pixels_ << "/" << width_ * height_
+                  << Utils::normal()
                   << std::endl;
         }
     }

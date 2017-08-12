@@ -52,6 +52,8 @@ struct BfsIW : Planner {
     mutable float get_atoms_time_;
     mutable float novel_atom_time_;
     mutable float expand_time_;
+    mutable size_t root_height_;
+    mutable bool random_decision_;
 
     BfsIW(ALEInterface &sim,
           std::ostream &logos,
@@ -114,6 +116,16 @@ struct BfsIW : Planner {
           + ")";
     }
 
+    virtual bool random_decision() const {
+        return random_decision_;
+    }
+    virtual size_t height() const {
+        return root_height_;
+    }
+    virtual size_t expanded() const {
+        return num_expansions_;
+    }
+
     virtual Action random_action() const {
         if( use_minimal_action_set_ )
             return minimal_action_set_[lrand48() % minimal_action_set_.size()];
@@ -169,6 +181,7 @@ struct BfsIW : Planner {
         assert(!root->children_.empty());
         root->backup_values(discount_);
         root->calculate_height();
+        root_height_ = root->height_;
 
         // print info about root node
         if( true || debug_ ) {
@@ -188,6 +201,7 @@ struct BfsIW : Planner {
         }
 
         if( root->value_ == 0 ) {
+            random_decision_ = true;
             root->longest_zero_value_branch(branch);
             size_t n = branch.size() >> 1;
             n = n == 0 ? 1 : n;
@@ -528,6 +542,8 @@ struct BfsIW : Planner {
         get_atoms_time_ = 0;
         novel_atom_time_ = 0;
         expand_time_ = 0;
+        root_height_ = 0;
+        random_decision_ = false;
     }
 
     void print_stats(std::ostream &os, const Node &root, const std::map<int, std::vector<int> > &novelty_table_map) const {
@@ -539,25 +555,25 @@ struct BfsIW : Planner {
             os << it->first << ":" << num_entries(it->second) << "/" << it->second.size() << ",";
         os << "]";
 
-        os << ", #nodes=" << root.num_nodes()
-           << ", #tips=" << root.num_tip_nodes()
-           << ", height=[" << root.height_ << ":";
+        os << " #nodes=" << root.num_nodes()
+           << " #tips=" << root.num_tip_nodes()
+           << " height=[" << root.height_ << ":";
 
         for( size_t k = 0; k < root.children_.size(); ++k )
-            os << root.children_[k]->height_ << " ";
+            os << root.children_[k]->height_ << ",";
         os << "]";
 
-        os << ", #expansions=" << num_expansions_
-           << ", #sim=" << simulator_calls_
-           << ", total-time=" << total_time_
-           << ", simulator-time=" << simulator_time_
-           << ", reset-time=" << reset_time_
-           << ", get/set-state-time=" << get_set_state_time_
-           << ", expand-time=" << expand_time_
-           << ", update-novelty-time=" << update_novelty_time_
-           << ", get-atoms-calls=" << get_atoms_calls_
-           << ", get-atoms-time=" << get_atoms_time_
-           << ", novel-atom-time=" << novel_atom_time_
+        os << " #expansions=" << num_expansions_
+           << " #sim=" << simulator_calls_
+           << " total-time=" << total_time_
+           << " simulator-time=" << simulator_time_
+           << " reset-time=" << reset_time_
+           << " get/set-state-time=" << get_set_state_time_
+           << " expand-time=" << expand_time_
+           << " update-novelty-time=" << update_novelty_time_
+           << " get-atoms-calls=" << get_atoms_calls_
+           << " get-atoms-time=" << get_atoms_time_
+           << " novel-atom-time=" << novel_atom_time_
            << Utils::normal() << std::endl;
     }
 

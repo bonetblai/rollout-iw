@@ -50,6 +50,8 @@ struct RolloutIW : Planner {
     mutable float get_atoms_time_;
     mutable float novel_atom_time_;
     mutable float expand_time_;
+    mutable size_t root_height_;
+    mutable bool random_decision_;
 
     RolloutIW(ALEInterface &sim,
               std::ostream &logos,
@@ -101,6 +103,16 @@ struct RolloutIW : Planner {
           + ",max-depth=" + std::to_string(max_depth_)
           + ",debug=" + std::to_string(debug_)
           + ")";
+    }
+
+    virtual bool random_decision() const {
+        return random_decision_;
+    }
+    virtual size_t height() const {
+        return root_height_;
+    }
+    virtual size_t expanded() const {
+        return num_expansions_;
     }
 
     virtual Action random_action() const {
@@ -190,6 +202,7 @@ struct RolloutIW : Planner {
         assert(!root->children_.empty());
         root->backup_values(discount_);
         root->calculate_height();
+        root_height_ = root->height_;
         //assert((rewards_seen.find(std::make_pair(true, false)) == rewards_seen.end()) || (root->value_ > 0));
 
         // print info about root node
@@ -237,6 +250,7 @@ struct RolloutIW : Planner {
         }
 
         if( root->value_ == 0 ) {
+            random_decision_ = true;
             root->longest_zero_value_branch(branch);
             size_t n = branch.size() >> 1;
             n = n == 0 ? 1 : n;
@@ -667,38 +681,40 @@ struct RolloutIW : Planner {
         get_atoms_time_ = 0;
         novel_atom_time_ = 0;
         expand_time_ = 0;
+        root_height_ = 0;
+        random_decision_ = false;
     }
 
     void print_stats(std::ostream &os, const Node &root, const std::map<int, std::vector<int> > &novelty_table_map) const {
         os << Utils::red()
            << "stats:"
            << " #rollouts=" << num_rollouts_
-           << ", #entries=[";
+           << " #entries=[";
 
         for( std::map<int, std::vector<int> >::const_iterator it = novelty_table_map.begin(); it != novelty_table_map.end(); ++it )
             os << it->first << ":" << num_entries(it->second) << "/" << it->second.size() << ",";
         os << "]";
 
-        os << ", #nodes=" << root.num_nodes()
-           << ", #tips=" << root.num_tip_nodes()
-           << ", height=[" << root.height_ << ":";
+        os << " #nodes=" << root.num_nodes()
+           << " #tips=" << root.num_tip_nodes()
+           << " height=[" << root.height_ << ":";
 
         for( size_t k = 0; k < root.children_.size(); ++k )
-            os << root.children_[k]->height_ << " ";
+            os << root.children_[k]->height_ << ",";
         os << "]";
 
-        os << ", #expansions=" << num_expansions_
-           << ", #cases=[" << num_cases_[0] << "," << num_cases_[1] << "," << num_cases_[2] << "," << num_cases_[3] << "]"
-           << ", #sim=" << simulator_calls_
-           << ", total-time=" << total_time_
-           << ", simulator-time=" << simulator_time_
-           << ", reset-time=" << reset_time_
-           << ", get/set-state-time=" << get_set_state_time_
-           << ", expand-time=" << expand_time_
-           << ", update-novelty-time=" << update_novelty_time_
-           << ", get-atoms-calls=" << get_atoms_calls_
-           << ", get-atoms-time=" << get_atoms_time_
-           << ", novel-atom-time=" << novel_atom_time_
+        os << " #expansions=" << num_expansions_
+           << " #cases=[" << num_cases_[0] << "," << num_cases_[1] << "," << num_cases_[2] << "," << num_cases_[3] << "]"
+           << " #sim=" << simulator_calls_
+           << " total-time=" << total_time_
+           << " simulator-time=" << simulator_time_
+           << " reset-time=" << reset_time_
+           << " get/set-state-time=" << get_set_state_time_
+           << " expand-time=" << expand_time_
+           << " update-novelty-time=" << update_novelty_time_
+           << " get-atoms-calls=" << get_atoms_calls_
+           << " get-atoms-time=" << get_atoms_time_
+           << " novel-atom-time=" << novel_atom_time_
            << Utils::normal() << std::endl;
     }
 

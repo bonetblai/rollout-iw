@@ -13,6 +13,9 @@ typedef int OBS;
 
 struct Planner {
     virtual std::string name() const = 0;
+    virtual bool random_decision() const = 0;
+    virtual size_t height() const = 0;
+    virtual size_t expanded() const = 0;
     virtual Action random_action() const = 0;
     virtual Node* get_branch(ALEInterface &env,
                              const std::vector<Action> &prefix,
@@ -32,6 +35,15 @@ struct RandomPlanner : Planner {
 
     virtual std::string name() const {
         return std::string("random()");
+    }
+    virtual bool random_decision() const {
+        return true;
+    }
+    virtual size_t height() const {
+        return 0;
+    }
+    virtual size_t expanded() const {
+        return 0;
     }
 
     virtual Action random_action() const {
@@ -64,6 +76,15 @@ struct FixedPlanner : public Planner {
 
     virtual std::string name() const {
         return std::string("fixed(sz=") + std::to_string(actions_.size()) + ")";
+    }
+    virtual bool random_decision() const {
+        return true;
+    }
+    virtual size_t height() const {
+        return 0;
+    }
+    virtual size_t expanded() const {
+        return 0;
     }
 
     virtual Action random_action() const {

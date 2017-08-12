@@ -25,9 +25,16 @@ size_t MyALEScreen::num_background_pixels_;
 ActionVect MyALEScreen::minimal_actions_;
 size_t MyALEScreen::minimal_actions_size_;
 
+// global variables
+float g_acc_reward = 0;
+size_t g_acc_num_decisions = 0;
+size_t g_acc_num_frames = 0;
+size_t g_acc_num_random = 0;
+size_t g_acc_height = 0;
+size_t g_acc_expanded = 0;
 
-pair<float, pair<size_t, size_t> >
-run_trial(ALEInterface &env, ostream &logos, const Planner &planner, bool execute_single_action, size_t frameskip, size_t max_execution_length_in_frames, vector<Action> &prefix) {
+
+void run_trial(ALEInterface &env, ostream &logos, const Planner &planner, bool execute_single_action, size_t frameskip, size_t max_execution_length_in_frames, vector<Action> &prefix) {
     assert(prefix.empty());
 
     env.reset_game();
@@ -35,14 +42,23 @@ run_trial(ALEInterface &env, ostream &logos, const Planner &planner, bool execut
     prefix.push_back(planner.random_action());
     Node *node = nullptr;
 
-    size_t decision = 0, frame = 0;
+    g_acc_reward = 0;
+    g_acc_num_decisions = 0;
+    g_acc_num_frames = 0;
+    g_acc_num_random = 0;
+    g_acc_height = 0;
+    g_acc_expanded = 0;
+
     float last_reward = env.act(prefix.back());
-    float total_reward = last_reward;
-    for( ; !env.game_over() && (frame < max_execution_length_in_frames); frame += frameskip ) {
+    g_acc_reward = last_reward;
+    for( size_t frame = 0; !env.game_over() && (frame < max_execution_length_in_frames); frame += frameskip ) {
         // if empty branch, get branch
         if( branch.empty() ) {
-            ++decision;
+            ++g_acc_num_decisions;
             node = planner.get_branch(env, prefix, node, last_reward, branch);
+            g_acc_num_random += planner.random_decision() ? 1 : 0;
+            g_acc_height += planner.height();
+            g_acc_expanded += planner.expanded();
             if( branch.empty() ) {
                 logos << Utils::error() << "no more available actions!" << endl;
                 break;
@@ -62,13 +78,13 @@ run_trial(ALEInterface &env, ostream &logos, const Planner &planner, bool execut
         last_reward = env.act(action);
         if( node != nullptr ) node = node->advance(action);
         prefix.push_back(action);
-        total_reward += last_reward;
+        g_acc_reward += last_reward;
+        g_acc_num_frames += frameskip;
 
         // prune branch if got positive reward
         if( execute_single_action || (last_reward > 0) )
             branch.clear();
     }
-    return make_pair(total_reward, make_pair(decision, frame));
 }
 
 void parse_action_sequence(const string &fixed_action_sequence, vector<Action> &actions) {
@@ -331,15 +347,21 @@ int main(int argc, char **argv) {
     for( size_t k = 0; k < num_episodes; ++k ) {
         vector<Action> prefix;
         float start_time = Utils::read_time_in_seconds();
-        pair<float, pair<size_t, size_t> > p = run_trial(env, *logos, *planner, execute_single_action, frameskip, max_execution_length_in_frames, prefix);
+        run_trial(env, *logos, *planner, execute_single_action, frameskip, max_execution_length_in_frames, prefix);
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
         *logos << "episode-stats:"
-               << " score=" << p.first
-               << ", decisions=" << p.second.first
-               << ", frames=" << p.second.second
-               << ", total-time=" << elapsed_time
-               << ", avg-time-per-decision=" << elapsed_time / float(p.second.first)
-               << ", avg-time-per-frame=" << elapsed_time / float(p.second.second)
+               << " rom=" << atari_rom
+               << " planner=" << planner_str
+               << " frameskip=" << frameskip
+               << " decisions=" << g_acc_num_decisions
+               << " frames=" << g_acc_num_frames
+               << " score=" << g_acc_reward
+               << " total-time=" << elapsed_time
+               << " avg-time-per-decision=" << elapsed_time / float(g_acc_num_decisions)
+               << " avg-time-per-frame=" << elapsed_time / float(g_acc_num_frames)
+               << " avg-expanded=" << float(g_acc_expanded) / float(g_acc_num_decisions)
+               << " avg-height=" << float(g_acc_height) / float(g_acc_num_decisions)
+               << " avg-random=" << float(g_acc_num_random) / float(g_acc_num_decisions)
                << endl;
     }
 

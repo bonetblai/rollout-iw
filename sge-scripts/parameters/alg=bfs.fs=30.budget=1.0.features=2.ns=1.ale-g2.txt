@@ -1,5 +1,0 @@
-bfs 30 1.0 2 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2/skiing.bin
-bfs 30 1.0 2 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2/tennis.bin
-bfs 30 1.0 2 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2/tutankham.bin
-bfs 30 1.0 2 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2/video_pinball.bin
-bfs 30 1.0 2 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2/wizard_of_wor.bin

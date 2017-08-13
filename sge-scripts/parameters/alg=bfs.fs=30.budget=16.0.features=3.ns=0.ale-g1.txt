@@ -1,6 +1,0 @@
-bfs 30 16.0 3 0 --execute-single-action,--nodisplay ALE-Atari-Width/group_1/amidar.bin
-bfs 30 16.0 3 0 --execute-single-action,--nodisplay ALE-Atari-Width/group_1/assault.bin
-bfs 30 16.0 3 0 --execute-single-action,--nodisplay ALE-Atari-Width/group_1/bank_heist.bin
-bfs 30 16.0 3 0 --execute-single-action,--nodisplay ALE-Atari-Width/group_1/centipede.bin
-bfs 30 16.0 3 0 --execute-single-action,--nodisplay ALE-Atari-Width/group_1/double_dunk.bin
-bfs 30 16.0 3 0 --execute-single-action,--nodisplay ALE-Atari-Width/group_1/gopher.bin

@@ -1,6 +1,0 @@
-bfs 10 inf 3 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_1/amidar.bin
-bfs 10 inf 3 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_1/assault.bin
-bfs 10 inf 3 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_1/bank_heist.bin
-bfs 10 inf 3 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_1/centipede.bin
-bfs 10 inf 3 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_1/double_dunk.bin
-bfs 10 inf 3 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_1/gopher.bin

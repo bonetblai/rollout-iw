@@ -1,5 +1,0 @@
-rollout 15 8.0 3 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2/skiing.bin
-rollout 15 8.0 3 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2/tennis.bin
-rollout 15 8.0 3 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2/tutankham.bin
-rollout 15 8.0 3 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2/video_pinball.bin
-rollout 15 8.0 3 1 --execute-single-action,--nodisplay,--novelty-subtables ALE-Atari-Width/group_2/wizard_of_wor.bin

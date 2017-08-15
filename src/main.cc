@@ -28,6 +28,7 @@ size_t MyALEScreen::minimal_actions_size_;
 // global variables
 float g_acc_reward = 0;
 size_t g_acc_simulator_calls = 0;
+size_t g_max_simulator_calls = 0;
 size_t g_acc_num_decisions = 0;
 size_t g_acc_num_frames = 0;
 size_t g_acc_num_random = 0;
@@ -45,6 +46,7 @@ void run_trial(ALEInterface &env, ostream &logos, const Planner &planner, bool e
 
     g_acc_reward = 0;
     g_acc_simulator_calls = 0;
+    g_max_simulator_calls = 0;
     g_acc_num_decisions = 0;
     g_acc_num_frames = 0;
     g_acc_num_random = 0;
@@ -59,6 +61,7 @@ void run_trial(ALEInterface &env, ostream &logos, const Planner &planner, bool e
             ++g_acc_num_decisions;
             node = planner.get_branch(env, prefix, node, last_reward, branch);
             g_acc_simulator_calls += planner.simulator_calls();
+            g_max_simulator_calls = std::max(g_max_simulator_calls, planner.simulator_calls());
             g_acc_num_random += planner.random_decision() ? 1 : 0;
             g_acc_height += planner.height();
             g_acc_expanded += planner.expanded();
@@ -364,6 +367,8 @@ int main(int argc, char **argv) {
                << " novelty-subtables=" << novelty_subtables
                << " frameskip=" << frameskip
                << " simulator-calls=" << g_acc_simulator_calls
+               << " max-simulator-calls=" << g_max_simulator_calls
+               << " avg-simulator-calls=" << float(g_acc_simulator_calls) / float(g_acc_num_decisions)
                << " decisions=" << g_acc_num_decisions
                << " frames=" << g_acc_num_frames
                << " score=" << g_acc_reward

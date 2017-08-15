@@ -27,6 +27,7 @@ size_t MyALEScreen::minimal_actions_size_;
 
 // global variables
 float g_acc_reward = 0;
+size_t g_acc_simulator_calls = 0;
 size_t g_acc_num_decisions = 0;
 size_t g_acc_num_frames = 0;
 size_t g_acc_num_random = 0;
@@ -43,6 +44,7 @@ void run_trial(ALEInterface &env, ostream &logos, const Planner &planner, bool e
     Node *node = nullptr;
 
     g_acc_reward = 0;
+    g_acc_simulator_calls = 0;
     g_acc_num_decisions = 0;
     g_acc_num_frames = 0;
     g_acc_num_random = 0;
@@ -56,6 +58,7 @@ void run_trial(ALEInterface &env, ostream &logos, const Planner &planner, bool e
         if( branch.empty() ) {
             ++g_acc_num_decisions;
             node = planner.get_branch(env, prefix, node, last_reward, branch);
+            g_acc_simulator_calls += planner.simulator_calls();
             g_acc_num_random += planner.random_decision() ? 1 : 0;
             g_acc_height += planner.height();
             g_acc_expanded += planner.expanded();
@@ -352,7 +355,11 @@ int main(int argc, char **argv) {
         *logos << "episode-stats:"
                << " rom=" << atari_rom
                << " planner=" << planner_str
+               << " budget=" << online_budget
+               << " features=" << screen_features
+               << " novelty-subtables=" << novelty_subtables
                << " frameskip=" << frameskip
+               << " simulator-calls=" << g_acc_simulator_calls
                << " decisions=" << g_acc_num_decisions
                << " frames=" << g_acc_num_frames
                << " score=" << g_acc_reward

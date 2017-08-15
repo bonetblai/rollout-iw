@@ -13,6 +13,7 @@ typedef int OBS;
 
 struct Planner {
     virtual std::string name() const = 0;
+    virtual size_t simulator_calls() const = 0;
     virtual bool random_decision() const = 0;
     virtual size_t height() const = 0;
     virtual size_t expanded() const = 0;
@@ -35,6 +36,9 @@ struct RandomPlanner : Planner {
 
     virtual std::string name() const {
         return std::string("random()");
+    }
+    virtual size_t simulator_calls() const {
+        return 0;
     }
     virtual bool random_decision() const {
         return true;
@@ -76,6 +80,9 @@ struct FixedPlanner : public Planner {
 
     virtual std::string name() const {
         return std::string("fixed(sz=") + std::to_string(actions_.size()) + ")";
+    }
+    virtual size_t simulator_calls() const {
+        return 0;
     }
     virtual bool random_decision() const {
         return true;

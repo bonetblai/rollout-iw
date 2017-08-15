@@ -105,6 +105,9 @@ struct RolloutIW : Planner {
           + ")";
     }
 
+    virtual size_t simulator_calls() const {
+        return simulator_calls_;
+    }
     virtual bool random_decision() const {
         return random_decision_;
     }

@@ -28,6 +28,7 @@ struct RolloutIW : Planner {
     const size_t max_rep_;
     const float discount_;
     const float alpha_;
+    const int nodes_threshold_;
     const bool feature_stratification_;
     const size_t max_depth_;
     const bool debug_;
@@ -64,6 +65,7 @@ struct RolloutIW : Planner {
               size_t max_rep,
               float discount,
               float alpha,
+              int nodes_threshold,
               bool feature_stratification,
               size_t max_depth,
               bool debug = false)
@@ -78,6 +80,7 @@ struct RolloutIW : Planner {
         max_rep_(max_rep),
         discount_(discount),
         alpha_(alpha),
+        nodes_threshold_(nodes_threshold),
         feature_stratification_(feature_stratification),
         max_depth_(max_depth),
         debug_(debug) {
@@ -99,6 +102,7 @@ struct RolloutIW : Planner {
           + ",max-rep=" + std::to_string(max_rep_)
           + ",discount=" + std::to_string(discount_)
           + ",alpha=" + std::to_string(alpha_)
+          + ",nodes-threshold=" + std::to_string(nodes_threshold_)
           + ",stratification=" + std::to_string(feature_stratification_)
           + ",max-depth=" + std::to_string(max_depth_)
           + ",debug=" + std::to_string(debug_)
@@ -168,37 +172,39 @@ struct RolloutIW : Planner {
         root->reset_frame_rep_counters(frameskip_);
         root->recompute_path_rewards(root);
 
-        // construct lookahead tree
-        float elapsed_time = Utils::read_time_in_seconds() - start_time;
-        int first_level = feature_stratification_ && (screen_features_type_ > 0) ? 1 : screen_features_type_;
-        for( int level = first_level; level <= screen_features_type_; ++level ) {
-            if( debug_ ) logos_ << Utils::magenta() << "layer:" << Utils::normal() << " level=" << level << ", rollouts=" << std::flush;
+        // construct/extend lookahead tree
+        if( root->num_nodes() < nodes_threshold_ ) {
+            float elapsed_time = Utils::read_time_in_seconds() - start_time;
+            int first_level = feature_stratification_ && (screen_features_type_ > 0) ? 1 : screen_features_type_;
+            for( int level = first_level; level <= screen_features_type_; ++level ) {
+                if( debug_ ) logos_ << Utils::magenta() << "layer:" << Utils::normal() << " level=" << level << ", rollouts=" << std::flush;
 
-            // clear solved labels
-            clear_solved_labels(root);
-            root->parent_->solved_ = false;
-            while( !root->solved_ && (elapsed_time < online_budget_) ) {
-                if( debug_ ) logos_ << '.' << std::flush;
-                std::pair<bool, bool> rewards_seen_in_rollout;
-                rollout(prefix, root, level, max_depth_, max_rep_, alpha_, novelty_table_map, rewards_seen_in_rollout);
-                rewards_seen.insert(rewards_seen_in_rollout);
+                // clear solved labels
+                clear_solved_labels(root);
+                root->parent_->solved_ = false;
+                while( !root->solved_ && (elapsed_time < online_budget_) ) {
+                    if( debug_ ) logos_ << '.' << std::flush;
+                    std::pair<bool, bool> rewards_seen_in_rollout;
+                    rollout(prefix, root, level, max_depth_, max_rep_, alpha_, novelty_table_map, rewards_seen_in_rollout);
+                    rewards_seen.insert(rewards_seen_in_rollout);
 #if 0
-                if( rewards_seen.first && !rewards_seen.second ) {
-                    root->backup_values(discount_);
-                    assert(root->value_ > 0);
-                    const Node *tip_node = root->best_tip_node(discount_);
-                    bool good_tip = do_random_lookahead_below_node(tip_node, 35, 50);
-                    if( good_tip ) {
-                        logos_ << "%" << std::flush;
-                        break;
-                    } else {
-                        const_cast<Node*>(tip_node)->reward_ = -alpha_;
+                    if( rewards_seen.first && !rewards_seen.second ) {
+                        root->backup_values(discount_);
+                        assert(root->value_ > 0);
+                        const Node *tip_node = root->best_tip_node(discount_);
+                        bool good_tip = do_random_lookahead_below_node(tip_node, 35, 50);
+                        if( good_tip ) {
+                            logos_ << "%" << std::flush;
+                            break;
+                        } else {
+                            const_cast<Node*>(tip_node)->reward_ = -alpha_;
+                        }
                     }
-                }
 #endif
-                elapsed_time = Utils::read_time_in_seconds() - start_time;
+                    elapsed_time = Utils::read_time_in_seconds() - start_time;
+                }
+                if( debug_ ) logos_ << std::endl;
             }
-            if( debug_ ) logos_ << std::endl;
         }
 
         // backup values and calculate heights

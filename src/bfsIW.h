@@ -29,6 +29,7 @@ struct BfsIW : Planner {
     const size_t max_rep_;
     const float discount_;
     const float alpha_;
+    const int nodes_threshold_;
     const bool break_ties_using_rewards_;
 #if 0
     const bool feature_stratification_;
@@ -66,6 +67,7 @@ struct BfsIW : Planner {
           size_t max_rep,
           float discount,
           float alpha,
+          int nodes_threshold,
           bool break_ties_using_rewards,
 #if 0
           bool feature_stratification,
@@ -83,6 +85,7 @@ struct BfsIW : Planner {
         max_rep_(max_rep),
         discount_(discount),
         alpha_(alpha),
+        nodes_threshold_(nodes_threshold),
         break_ties_using_rewards_(break_ties_using_rewards),
 #if 0
         feature_stratification_(feature_stratification),
@@ -107,6 +110,7 @@ struct BfsIW : Planner {
           + ",max-rep=" + std::to_string(max_rep_)
           + ",discount=" + std::to_string(discount_)
           + ",alpha=" + std::to_string(alpha_)
+          + ",nodes-threshold=" + std::to_string(nodes_threshold_)
           + ",break-ties-using-rewards=" + std::to_string(break_ties_using_rewards_)
 #if 0
           + ",stratification=" + std::to_string(feature_stratification_)
@@ -177,8 +181,9 @@ struct BfsIW : Planner {
         root->reset_frame_rep_counters(frameskip_);
         root->recompute_path_rewards(root);
 
-        // construct lookahead tree
-        bfs(prefix, root, online_budget_, screen_features_type_, max_rep_, alpha_, novelty_table_map);
+        // construct/extend lookahead tree
+        if( root->num_nodes() < nodes_threshold_ )
+            bfs(prefix, root, online_budget_, screen_features_type_, max_rep_, alpha_, novelty_table_map);
 
         // backup values and calculate heights
         assert(!root->children_.empty());

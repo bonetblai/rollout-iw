@@ -26,6 +26,7 @@ struct BfsIW : Planner {
     const int screen_features_type_;
     const float online_budget_;
     const bool novelty_subtables_;
+    const bool random_actions_;
     const size_t max_rep_;
     const float discount_;
     const float alpha_;
@@ -64,6 +65,7 @@ struct BfsIW : Planner {
           int screen_features_type,
           float online_budget,
           bool novelty_subtables,
+          bool random_actions,
           size_t max_rep,
           float discount,
           float alpha,
@@ -82,6 +84,7 @@ struct BfsIW : Planner {
         screen_features_type_(screen_features_type),
         online_budget_(online_budget),
         novelty_subtables_(novelty_subtables),
+        random_actions_(random_actions),
         max_rep_(max_rep),
         discount_(discount),
         alpha_(alpha),
@@ -107,6 +110,7 @@ struct BfsIW : Planner {
           + ",features=" + std::to_string(screen_features_type_)
           + ",online-budget=" + std::to_string(online_budget_)
           + ",novelty-subtables=" + std::to_string(novelty_subtables_)
+          + ",random-actions=" + std::to_string(random_actions_)
           + ",max-rep=" + std::to_string(max_rep_)
           + ",discount=" + std::to_string(discount_)
           + ",alpha=" + std::to_string(alpha_)
@@ -209,12 +213,16 @@ struct BfsIW : Planner {
         }
 
         if( root->value_ == 0 ) {
-            random_decision_ = true;
-            root->longest_zero_value_branch(branch);
-            size_t n = branch.size() >> 1;
-            n = n == 0 ? 1 : n;
-            while( branch.size() > n )
-                branch.pop_back();
+            if( random_actions_ ) {
+                random_decision_ = true;
+                branch.push_back(random_action());
+            } else {
+                root->longest_zero_value_branch(branch);
+                size_t n = branch.size() >> 1;
+                n = n == 0 ? 1 : n;
+                while( branch.size() > n )
+                    branch.pop_back();
+            }
         } else if( root->value_ < 0 ) {
             root->best_branch(branch, discount_);
         }

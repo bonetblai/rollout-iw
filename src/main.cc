@@ -31,7 +31,7 @@ size_t g_acc_simulator_calls = 0;
 size_t g_max_simulator_calls = 0;
 size_t g_acc_num_decisions = 0;
 size_t g_acc_num_frames = 0;
-size_t g_acc_num_random = 0;
+size_t g_acc_num_random_decisions = 0;
 size_t g_acc_height = 0;
 size_t g_acc_expanded = 0;
 
@@ -49,7 +49,7 @@ void run_trial(ALEInterface &env, ostream &logos, const Planner &planner, bool e
     g_max_simulator_calls = 0;
     g_acc_num_decisions = 0;
     g_acc_num_frames = 0;
-    g_acc_num_random = 0;
+    g_acc_num_random_decisions = 0;
     g_acc_height = 0;
     g_acc_expanded = 0;
 
@@ -62,7 +62,7 @@ void run_trial(ALEInterface &env, ostream &logos, const Planner &planner, bool e
             node = planner.get_branch(env, prefix, node, last_reward, branch);
             g_acc_simulator_calls += planner.simulator_calls();
             g_max_simulator_calls = std::max(g_max_simulator_calls, planner.simulator_calls());
-            g_acc_num_random += planner.random_decision() ? 1 : 0;
+            g_acc_num_random_decisions += planner.random_decision() ? 1 : 0;
             g_acc_height += planner.height();
             g_acc_expanded += planner.expanded();
             if( branch.empty() ) {
@@ -162,6 +162,7 @@ int main(int argc, char **argv) {
 
     // options for both planners
     bool novelty_subtables = false;
+    bool random_actions = false;
     int max_rep;
     float discount;
     float alpha;
@@ -210,6 +211,7 @@ int main(int argc, char **argv) {
       // planners
       ("planner", po::value<string>(&planner_str)->default_value(string("rollout")), "set planner, either 'rollout' or 'bfs'")
       ("novelty-subtables", "turn on use of novelty subtables (default is to use single table)")
+      ("random-actions", "use random action when there are no rewards in look-ahead tree (default is off)")
       ("max-rep", po::value<int>(&max_rep)->default_value(30), "set max rep(etition) of screen features during lookahead (default is 30 frames)")
       ("discount", po::value<float>(&discount)->default_value(1.0), "set discount factor for lookahead (default is 1.0)")
       ("alpha", po::value<float>(&alpha)->default_value(10000.0), "set alpha value for lookahead (default is 10,000)")
@@ -243,6 +245,7 @@ int main(int argc, char **argv) {
     use_minimal_action_set = opt_varmap.count("use-minimal-action-set");
     execute_single_action = opt_varmap.count("execute-single-action");
     novelty_subtables = opt_varmap.count("novelty-subtables");
+    random_actions = opt_varmap.count("use-random-actions");
     feature_stratification = opt_varmap.count("feature-stratification");
     break_ties_using_rewards = opt_varmap.count("break-ties-using-rewards");
 
@@ -323,6 +326,7 @@ int main(int argc, char **argv) {
                                     screen_features,
                                     online_budget,
                                     novelty_subtables,
+                                    random_actions,
                                     max_rep,
                                     discount,
                                     alpha,
@@ -339,6 +343,7 @@ int main(int argc, char **argv) {
                                 screen_features,
                                 online_budget,
                                 novelty_subtables,
+                                random_actions,
                                 max_rep,
                                 discount,
                                 alpha,
@@ -365,6 +370,7 @@ int main(int argc, char **argv) {
                << " budget=" << online_budget
                << " features=" << screen_features
                << " novelty-subtables=" << novelty_subtables
+               << " random-actions=" << random_actions
                << " frameskip=" << frameskip
                << " simulator-calls=" << g_acc_simulator_calls
                << " max-simulator-calls=" << g_max_simulator_calls
@@ -377,7 +383,7 @@ int main(int argc, char **argv) {
                << " avg-time-per-frame=" << elapsed_time / float(g_acc_num_frames)
                << " avg-expanded=" << float(g_acc_expanded) / float(g_acc_num_decisions)
                << " avg-height=" << float(g_acc_height) / float(g_acc_num_decisions)
-               << " avg-random=" << float(g_acc_num_random) / float(g_acc_num_decisions)
+               << " avg-random=" << float(g_acc_num_random_decisions) / float(g_acc_num_decisions)
                << endl;
     }
 

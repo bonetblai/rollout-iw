@@ -284,7 +284,7 @@ struct RolloutIW : Planner {
                    << ", size=" << branch.size()
                    << ", actions:"
                    << std::endl;
-            root->print_branch(logos_, branch);
+            //root->print_branch(logos_, branch);
         }
 
         // stop timer and print stats

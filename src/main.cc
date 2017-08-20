@@ -252,7 +252,7 @@ int main(int argc, char **argv) {
     use_minimal_action_set = opt_varmap.count("use-minimal-action-set");
     execute_single_action = opt_varmap.count("execute-single-action");
     novelty_subtables = opt_varmap.count("novelty-subtables");
-    random_actions = opt_varmap.count("use-random-actions");
+    random_actions = opt_varmap.count("random-actions");
     feature_stratification = opt_varmap.count("feature-stratification");
     break_ties_using_rewards = opt_varmap.count("break-ties-using-rewards");
 

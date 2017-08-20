@@ -91,6 +91,13 @@ void run_trial(ALEInterface &env, ostream &logos, const Planner &planner, bool e
         if( execute_single_action || (last_reward > 0) )
             branch.clear();
     }
+
+    // cleanup
+    if( node != nullptr ) {
+        assert(node->parent_ != nullptr);
+        assert(node->parent_->parent_ == nullptr);
+        remove_tree(node->parent_);
+    }
 }
 
 void parse_action_sequence(const string &fixed_action_sequence, vector<Action> &actions) {
@@ -388,6 +395,7 @@ int main(int argc, char **argv) {
     }
 
     // cleanup
+    delete planner;
     if( dynamic_cast<ofstream*>(logos) != nullptr ) {
         static_cast<ofstream*>(logos)->close();
         delete logos;

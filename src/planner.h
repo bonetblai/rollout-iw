@@ -12,6 +12,7 @@
 typedef int OBS;
 
 struct Planner {
+    virtual ~Planner() { }
     virtual std::string name() const = 0;
     virtual size_t simulator_calls() const = 0;
     virtual bool random_decision() const = 0;
@@ -33,6 +34,7 @@ struct RandomPlanner : Planner {
         minimal_actions_ = env.getMinimalActionSet();
         minimal_actions_size_ = minimal_actions_.size();
     }
+    virtual ~RandomPlanner() { }
 
     virtual std::string name() const {
         return std::string("random()");
@@ -71,6 +73,7 @@ struct FixedPlanner : public Planner {
     FixedPlanner(const std::vector<Action> &actions) {
         actions_ = std::deque<Action>(actions.begin(), actions.end());
     }
+    virtual ~FixedPlanner() { }
 
     Action pop_first_action() const {
         Action action = actions_.front();

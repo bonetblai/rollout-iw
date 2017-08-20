@@ -49,6 +49,7 @@ class Node {
         state_(nullptr),
         frame_rep_(0) {
     }
+    ~Node() { delete state_; }
 
     void remove_children() {
         while( !children_.empty() ) {

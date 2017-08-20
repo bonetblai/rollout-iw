@@ -102,6 +102,7 @@ struct BfsIW : Planner {
         reset_game(sim_);
         get_state(sim_, initial_sim_state_);
     }
+    virtual ~BfsIW() { }
 
     virtual std::string name() const {
         return std::string("bfs(")

@@ -30,6 +30,7 @@ struct BfsIW : Planner {
     const size_t max_rep_;
     const float discount_;
     const float alpha_;
+    const bool use_alpha_to_update_reward_for_death_;
     const int nodes_threshold_;
     const bool break_ties_using_rewards_;
 #if 0
@@ -69,6 +70,7 @@ struct BfsIW : Planner {
           size_t max_rep,
           float discount,
           float alpha,
+          bool use_alpha_to_update_reward_for_death,
           int nodes_threshold,
           bool break_ties_using_rewards,
 #if 0
@@ -88,6 +90,7 @@ struct BfsIW : Planner {
         max_rep_(max_rep),
         discount_(discount),
         alpha_(alpha),
+        use_alpha_to_update_reward_for_death_(use_alpha_to_update_reward_for_death),
         nodes_threshold_(nodes_threshold),
         break_ties_using_rewards_(break_ties_using_rewards),
 #if 0
@@ -115,6 +118,7 @@ struct BfsIW : Planner {
           + ",max-rep=" + std::to_string(max_rep_)
           + ",discount=" + std::to_string(discount_)
           + ",alpha=" + std::to_string(alpha_)
+          + ",use-alpha-to-update-reward-for-death=" + std::to_string(use_alpha_to_update_reward_for_death_)
           + ",nodes-threshold=" + std::to_string(nodes_threshold_)
           + ",break-ties-using-rewards=" + std::to_string(break_ties_using_rewards_)
 #if 0
@@ -188,7 +192,7 @@ struct BfsIW : Planner {
 
         // construct/extend lookahead tree
         if( root->num_nodes() < nodes_threshold_ )
-            bfs(prefix, root, online_budget_, screen_features_type_, max_rep_, alpha_, novelty_table_map);
+            bfs(prefix, root, online_budget_, screen_features_type_, max_rep_, alpha_, use_alpha_to_update_reward_for_death_, novelty_table_map);
 
         // backup values and calculate heights
         assert(!root->children_.empty());
@@ -264,6 +268,7 @@ struct BfsIW : Planner {
              int screen_features_level,
              size_t max_rep,
              float alpha,
+             bool use_alpha_to_update_reward_for_death,
              std::map<int, std::vector<int> > &novelty_table_map) const {
         // priority queue
         NodeComparator cmp(break_ties_using_rewards_);
@@ -286,7 +291,7 @@ struct BfsIW : Planner {
             assert(node->children_.empty());
             assert(node->visited_ || !node->is_info_valid_);
             if( !node->is_info_valid_ ) {
-                update_info(node, screen_features_level, alpha);
+                update_info(node, screen_features_level, alpha, use_alpha_to_update_reward_for_death);
                 assert(node->children_.empty());
                 node->visited_ = true;
             }
@@ -353,7 +358,7 @@ struct BfsIW : Planner {
         }
     }
 
-    void update_info(Node *node, int screen_features_level, float alpha) const {
+    void update_info(Node *node, int screen_features_level, float alpha, bool use_alpha_to_update_reward_for_death) const {
         assert(!node->is_info_valid_);
         assert(node->state_ == nullptr);
         assert((node->parent_ != nullptr) && (node->parent_->state_ != nullptr));
@@ -365,7 +370,7 @@ struct BfsIW : Planner {
         if( node->reward_ < 0 ) node->reward_ *= alpha;
         get_atoms(node, screen_features_level);
         node->ale_lives_ = get_lives(sim_);
-        if( (node->parent_ != nullptr) && (node->parent_->ale_lives_ != -1) ) {
+        if( use_alpha_to_update_reward_for_death && (node->parent_ != nullptr) && (node->parent_->ale_lives_ != -1) ) {
             if( node->ale_lives_ < node->parent_->ale_lives_ ) {
                 node->reward_ = -10 * alpha;
                 //logos_ << "L" << std::flush;

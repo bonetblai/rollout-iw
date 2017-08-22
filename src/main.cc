@@ -173,6 +173,7 @@ int main(int argc, char **argv) {
     int max_rep;
     float discount;
     float alpha;
+    bool use_alpha_to_update_reward_for_death = false;
     int nodes_threshold;
 
     // options for rollout planner
@@ -222,6 +223,7 @@ int main(int argc, char **argv) {
       ("max-rep", po::value<int>(&max_rep)->default_value(30), "set max rep(etition) of screen features during lookahead (default is 30 frames)")
       ("discount", po::value<float>(&discount)->default_value(1.0), "set discount factor for lookahead (default is 1.0)")
       ("alpha", po::value<float>(&alpha)->default_value(10000.0), "set alpha value for lookahead (default is 10,000)")
+      ("use-alpha-to-update-reward-for-death", "assign a big negative reward, depending on alpha's value, for deaths (default is off)")
       ("nodes-threshold", po::value<int>(&nodes_threshold)->default_value(50000), "set threshold for expanding look-ahead tree (default is 50,000 nodes)")
 
       // options for rollout planner
@@ -253,6 +255,7 @@ int main(int argc, char **argv) {
     execute_single_action = opt_varmap.count("execute-single-action");
     novelty_subtables = opt_varmap.count("novelty-subtables");
     random_actions = opt_varmap.count("random-actions");
+    use_alpha_to_update_reward_for_death = opt_varmap.count("use-alpha-to-update-reward-for-death");
     feature_stratification = opt_varmap.count("feature-stratification");
     break_ties_using_rewards = opt_varmap.count("break-ties-using-rewards");
 
@@ -337,6 +340,7 @@ int main(int argc, char **argv) {
                                     max_rep,
                                     discount,
                                     alpha,
+                                    use_alpha_to_update_reward_for_death,
                                     nodes_threshold,
                                     feature_stratification,
                                     max_depth,
@@ -354,6 +358,7 @@ int main(int argc, char **argv) {
                                 max_rep,
                                 discount,
                                 alpha,
+                                use_alpha_to_update_reward_for_death,
                                 nodes_threshold,
                                 break_ties_using_rewards,
                                 debug);

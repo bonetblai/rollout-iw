@@ -29,6 +29,7 @@ struct RolloutIW : Planner {
     const size_t max_rep_;
     const float discount_;
     const float alpha_;
+    const bool use_alpha_to_update_reward_for_death_;
     const int nodes_threshold_;
     const bool feature_stratification_;
     const size_t max_depth_;
@@ -67,6 +68,7 @@ struct RolloutIW : Planner {
               size_t max_rep,
               float discount,
               float alpha,
+              bool use_alpha_to_update_reward_for_death,
               int nodes_threshold,
               bool feature_stratification,
               size_t max_depth,
@@ -83,6 +85,7 @@ struct RolloutIW : Planner {
         max_rep_(max_rep),
         discount_(discount),
         alpha_(alpha),
+        use_alpha_to_update_reward_for_death_(use_alpha_to_update_reward_for_death),
         nodes_threshold_(nodes_threshold),
         feature_stratification_(feature_stratification),
         max_depth_(max_depth),
@@ -107,6 +110,7 @@ struct RolloutIW : Planner {
           + ",max-rep=" + std::to_string(max_rep_)
           + ",discount=" + std::to_string(discount_)
           + ",alpha=" + std::to_string(alpha_)
+          + ",use-alpha-to-update-reward-for-death=" + std::to_string(use_alpha_to_update_reward_for_death_)
           + ",nodes-threshold=" + std::to_string(nodes_threshold_)
           + ",stratification=" + std::to_string(feature_stratification_)
           + ",max-depth=" + std::to_string(max_depth_)
@@ -190,7 +194,7 @@ struct RolloutIW : Planner {
                 while( !root->solved_ && (elapsed_time < online_budget_) ) {
                     if( debug_ ) logos_ << '.' << std::flush;
                     std::pair<bool, bool> rewards_seen_in_rollout;
-                    rollout(prefix, root, level, max_depth_, max_rep_, alpha_, novelty_table_map, rewards_seen_in_rollout);
+                    rollout(prefix, root, level, max_depth_, max_rep_, alpha_, use_alpha_to_update_reward_for_death_, novelty_table_map, rewards_seen_in_rollout);
                     rewards_seen.insert(rewards_seen_in_rollout);
 #if 0
                     if( rewards_seen.first && !rewards_seen.second ) {
@@ -308,6 +312,7 @@ struct RolloutIW : Planner {
                  size_t max_depth,
                  size_t max_rep,
                  float alpha,
+                 bool use_alpha_to_update_reward_for_death,
                  std::map<int, std::vector<int> > &novelty_table_map,
                  std::pair<bool, bool> &rewards_seen) const {
         ++num_rollouts_;
@@ -318,7 +323,7 @@ struct RolloutIW : Planner {
 
         // update root info
         if( !root->is_info_valid_ )
-            update_info(root, screen_features_level, alpha);
+            update_info(root, screen_features_level, alpha, use_alpha_to_update_reward_for_death);
 
         // perform rollout
         Node *node = root;
@@ -360,7 +365,7 @@ struct RolloutIW : Planner {
 
             // update info
             if( !node->is_info_valid_ )
-                update_info(node, screen_features_level, alpha);
+                update_info(node, screen_features_level, alpha, use_alpha_to_update_reward_for_death);
 
             // if terminal, label as solved and terminate rollout
             if( node->terminal_ ) {
@@ -441,7 +446,7 @@ struct RolloutIW : Planner {
         }
     }
 
-    void update_info(Node *node, int screen_features_level, float alpha) const {
+    void update_info(Node *node, int screen_features_level, float alpha, bool use_alpha_to_update_reward_for_death) const {
         assert(!node->is_info_valid_);
         assert(node->state_ == nullptr);
         assert((node->parent_ != nullptr) && (node->parent_->state_ != nullptr));
@@ -453,7 +458,7 @@ struct RolloutIW : Planner {
         if( node->reward_ < 0 ) node->reward_ *= alpha;
         get_atoms(node, screen_features_level);
         node->ale_lives_ = get_lives(sim_);
-        if( (node->parent_ != nullptr) && (node->parent_->ale_lives_ != -1) ) {
+        if( use_alpha_to_update_reward_for_death && (node->parent_ != nullptr) && (node->parent_->ale_lives_ != -1) ) {
             if( node->ale_lives_ < node->parent_->ale_lives_ ) {
                 node->reward_ = -10 * alpha;
                 //logos_ << "L" << std::flush;

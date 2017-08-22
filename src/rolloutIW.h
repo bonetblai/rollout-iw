@@ -161,7 +161,6 @@ struct RolloutIW : Planner {
 
         // novelty table and other vars
         std::map<int, std::vector<int> > novelty_table_map;
-        //std::vector<int> novelty_table(num_tracked_atoms_, std::numeric_limits<int>::max());
         std::set<std::pair<bool, bool> > rewards_seen;
 
         // construct root node
@@ -221,7 +220,6 @@ struct RolloutIW : Planner {
         root->backup_values(discount_);
         root->calculate_height();
         root_height_ = root->height_;
-        //assert((rewards_seen.find(std::make_pair(true, false)) == rewards_seen.end()) || (root->value_ > 0));
 
         // print info about root node
         if( true || debug_ ) {
@@ -379,8 +377,6 @@ struct RolloutIW : Planner {
             // verify repetitions of feature atoms (screen mode)
             if( node->frame_rep_ > max_rep ) {
                 node->visited_ = true;
-                //node->terminal_ = true;
-                //node->reward_ = -10;
                 assert(node->children_.empty());
                 node->solve_and_backpropagate_label();
                 //logos_ << "R" << std::flush;
@@ -626,9 +622,7 @@ struct RolloutIW : Planner {
     float call_simulator(ALEInterface &ale, Action action) const {
         ++simulator_calls_;
         float start_time = Utils::read_time_in_seconds();
-        //int frame_number = ale.getFrameNumber();
         float reward = ale.act(action);
-        //assert(ale.getFrameNumber() == frame_number + 5);
         assert(reward != -std::numeric_limits<float>::infinity());
         simulator_time_ += Utils::read_time_in_seconds() - start_time;
         return reward;
@@ -655,14 +649,12 @@ struct RolloutIW : Planner {
 
     void get_state(ALEInterface &ale, ALEState &ale_state) const {
         float start_time = Utils::read_time_in_seconds();
-        //ale_state = ale.cloneSystemState(); // CHECK
         ale_state = ale.cloneState();
         get_set_state_time_ += Utils::read_time_in_seconds() - start_time;
     }
 
     void set_state(ALEInterface &ale, const ALEState &ale_state) const {
         float start_time = Utils::read_time_in_seconds();
-        //ale.restoreSystemState(ale_state); // CHECK
         ale.restoreState(ale_state);
         get_set_state_time_ += Utils::read_time_in_seconds() - start_time;
     }

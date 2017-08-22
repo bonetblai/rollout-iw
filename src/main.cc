@@ -283,10 +283,10 @@ int main(int argc, char **argv) {
     // get/set desired settings
     env.setInt("frame_skip", frameskip);
     env.setInt("random_seed", random_seed);
-    env.setFloat("repeat_action_probability", 0.00); // The default is already 0.25, this is just an example
+    env.setFloat("repeat_action_probability", 0.00);
     sim.setInt("frame_skip", frameskip);
     sim.setInt("random_seed", random_seed);
-    sim.setFloat("repeat_action_probability", 0.00); // The default is already 0.25, this is just an example
+    sim.setFloat("repeat_action_probability", 0.00);
     fs::path rom_path(atari_rom);
 
 #ifdef __USE_SDL

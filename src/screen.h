@@ -63,59 +63,6 @@ struct MyALEScreen {
         compute_features(type, screen_state_atoms, prev_screen_state_atoms, debug);
     }
 
-#if 0
-    MyALEScreen(ALEInterface &ale,
-                int type,
-                bool stratification = false,
-                std::vector<int> *screen_state_atoms = nullptr,
-                const std::vector<int> *prev_screen_state_atoms = nullptr,
-                bool debug = false)
-      : type_(type),
-        stratification_(stratification),
-        debug_(debug),
-        screen_(ale.getScreen()) {
-
-        if( debug_ ) {
-            logos_ << "screen:"
-                   << " type=" << type_
-                   << ", height=" << screen_.height() << " (expecting " << height_ << ")"
-                   << ", width=" << screen_.width() << " (expecting " << width_ << ")"
-                   << std::endl;
-        }
-        assert((width_ == screen_.width()) && (height_ == screen_.height()));
-
-        int num_basic_features = 0;
-        int num_bpros_features = 0;
-        int num_bprot_features = 0;
-
-        if( type_ > 0 ) {
-            basic_features_bitmap_ = std::vector<bool>(num_basic_features_, false);
-            compute_basic_features(screen_state_atoms);
-            num_basic_features = screen_state_atoms->size();
-            if( (type_ > 1) && (screen_state_atoms != nullptr) ) {
-                std::vector<int> basic_features(*screen_state_atoms);
-                bpros_features_bitmap_ = std::vector<bool>(num_bpros_features_, false);
-                compute_bpros_features(basic_features, *screen_state_atoms);
-                num_bpros_features = screen_state_atoms->size() - num_basic_features;
-                if( (type_ > 2) && (prev_screen_state_atoms != nullptr) ) {
-                    bprot_features_bitmap_ = std::vector<bool>(num_bprot_features_, false);
-                    compute_bprot_features(basic_features, *screen_state_atoms, *prev_screen_state_atoms);
-                    num_bprot_features = screen_state_atoms->size() - num_basic_features - num_bpros_features;
-                }
-            }
-        }
-
-        if( debug_ ) {
-            logos_ << "screen:"
-                   << " #features=" << screen_state_atoms->size()
-                   << ", #basic=" << num_basic_features
-                   << ", #bpros=" << num_bpros_features
-                   << ", #bprot=" << num_bprot_features
-                   << std::endl;
-        }
-    }
-#endif
-
     static Action random_action() {
         return minimal_actions_[lrand48() % minimal_actions_size_];
     }

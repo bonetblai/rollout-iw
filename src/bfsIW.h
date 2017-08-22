@@ -33,10 +33,6 @@ struct BfsIW : Planner {
     const bool use_alpha_to_update_reward_for_death_;
     const int nodes_threshold_;
     const bool break_ties_using_rewards_;
-#if 0
-    const bool feature_stratification_;
-    const size_t max_depth_;
-#endif
     const bool debug_;
 
     ALEState initial_sim_state_;
@@ -73,10 +69,6 @@ struct BfsIW : Planner {
           bool use_alpha_to_update_reward_for_death,
           int nodes_threshold,
           bool break_ties_using_rewards,
-#if 0
-          bool feature_stratification,
-          size_t max_depth,
-#endif
           bool debug = false)
       : sim_(sim),
         logos_(logos),
@@ -93,10 +85,6 @@ struct BfsIW : Planner {
         use_alpha_to_update_reward_for_death_(use_alpha_to_update_reward_for_death),
         nodes_threshold_(nodes_threshold),
         break_ties_using_rewards_(break_ties_using_rewards),
-#if 0
-        feature_stratification_(feature_stratification),
-        max_depth_(max_depth),
-#endif
         debug_(debug) {
         //static_assert(std::numeric_limits<float>::is_iec559, "IEEE 754 required");
         assert(sim_.getInt("frame_skip") == frameskip_);
@@ -121,10 +109,6 @@ struct BfsIW : Planner {
           + ",use-alpha-to-update-reward-for-death=" + std::to_string(use_alpha_to_update_reward_for_death_)
           + ",nodes-threshold=" + std::to_string(nodes_threshold_)
           + ",break-ties-using-rewards=" + std::to_string(break_ties_using_rewards_)
-#if 0
-          + ",stratification=" + std::to_string(feature_stratification_)
-          + ",max-depth=" + std::to_string(max_depth_)
-#endif
           + ",debug=" + std::to_string(debug_)
           + ")";
     }
@@ -491,9 +475,7 @@ struct BfsIW : Planner {
     float call_simulator(ALEInterface &ale, Action action) const {
         ++simulator_calls_;
         float start_time = Utils::read_time_in_seconds();
-        //int frame_number = ale.getFrameNumber();
         float reward = ale.act(action);
-        //assert(ale.getFrameNumber() == frame_number + 5);
         assert(reward != -std::numeric_limits<float>::infinity());
         simulator_time_ += Utils::read_time_in_seconds() - start_time;
         return reward;
@@ -520,14 +502,12 @@ struct BfsIW : Planner {
 
     void get_state(ALEInterface &ale, ALEState &ale_state) const {
         float start_time = Utils::read_time_in_seconds();
-        //ale_state = ale.cloneSystemState(); // CHECK
         ale_state = ale.cloneState();
         get_set_state_time_ += Utils::read_time_in_seconds() - start_time;
     }
 
     void set_state(ALEInterface &ale, const ALEState &ale_state) const {
         float start_time = Utils::read_time_in_seconds();
-        //ale.restoreSystemState(ale_state); // CHECK
         ale.restoreState(ale_state);
         get_set_state_time_ += Utils::read_time_in_seconds() - start_time;
     }

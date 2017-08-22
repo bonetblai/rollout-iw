@@ -206,7 +206,7 @@ struct BfsIW : Planner {
                 random_decision_ = true;
                 branch.push_back(random_action());
             } else {
-                root->longest_zero_value_branch(branch);
+                root->longest_zero_value_branch(branch, discount_);
                 size_t n = branch.size() >> 1;
                 n = n == 0 ? 1 : n;
                 while( branch.size() > n )

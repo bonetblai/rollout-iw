@@ -69,6 +69,7 @@ class Node {
     }
 
     Node* advance(Action action) {
+        assert(!children_.empty());
         assert((parent_ == nullptr) || (parent_->parent_ == nullptr));
         if( parent_ != nullptr ) {
             delete parent_;

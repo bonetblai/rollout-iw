@@ -185,6 +185,9 @@ struct BfsIW : Planner {
                 }
             }
             assert(root->children_.size() == actions.size());
+        } else {
+            // make sure this root node isn't marked as frame rep
+            root->parent_->feature_atoms_.clear();
         }
 
         // normalize depths and recompute path rewards
@@ -304,7 +307,7 @@ struct BfsIW : Planner {
                 if( debug_ ) logos_ << "t" << "," << std::flush;
                 continue;
             }
-                   
+
             // verify max repetitions of feature atoms (screen mode)
             if( node->frame_rep_ > max_rep ) {
                 if( debug_ ) logos_ << "r" << node->frame_rep_ << "," << std::flush;

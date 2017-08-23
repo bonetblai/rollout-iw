@@ -190,6 +190,9 @@ struct RolloutIW : Planner {
                 }
             }
             assert(root->children_.size() == actions.size());
+        } else {
+            // make sure this root node isn't marked as frame rep
+            root->parent_->feature_atoms_.clear();
         }
 
         // normalize depths, reset rep counters, and recompute path rewards

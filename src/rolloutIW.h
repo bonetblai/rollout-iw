@@ -176,14 +176,22 @@ struct RolloutIW : Planner {
 
         // if root has rep > 0, complete children
         if( root->frame_rep_ > 0 ) {
-            assert(0);
-        } else {
-            // normalize depths, reset rep counters, and recompute path rewards
-            root->parent_->depth_ = -1;
-            root->normalize_depth();
-            root->reset_frame_rep_counters(frameskip_);
-            root->recompute_path_rewards(root);
+
+            assert(root->children_.size() == 1);
+            Node *child = root->children_[0];
+            const ActionVect &actions = use_minimal_action_set_ ? minimal_action_set_ : legal_action_set_;
+            for( size_t k = 0; k < actions.size(); ++k ) {
+                if( actions[k] != child->action_ )
+                    root->expand(actions[k]);
+            }
+            assert(root->children_.size() == actions.size());
         }
+
+        // normalize depths, reset rep counters, and recompute path rewards
+        root->parent_->depth_ = -1;
+        root->normalize_depth();
+        root->reset_frame_rep_counters(frameskip_);
+        root->recompute_path_rewards(root);
 
         // construct/extend lookahead tree
         if( root->num_nodes() < nodes_threshold_ ) {

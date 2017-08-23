@@ -174,11 +174,16 @@ struct RolloutIW : Planner {
         assert(root->parent_ != nullptr);
         root->parent_->parent_ = nullptr;
 
-        // normalize depths, reset rep counters, and recompute path rewards
-        root->parent_->depth_ = -1;
-        root->normalize_depth();
-        root->reset_frame_rep_counters(frameskip_);
-        root->recompute_path_rewards(root);
+        // if root has rep > 0, complete children
+        if( root->frame_rep_ > 0 ) {
+            assert(0);
+        } else {
+            // normalize depths, reset rep counters, and recompute path rewards
+            root->parent_->depth_ = -1;
+            root->normalize_depth();
+            root->reset_frame_rep_counters(frameskip_);
+            root->recompute_path_rewards(root);
+        }
 
         // construct/extend lookahead tree
         if( root->num_nodes() < nodes_threshold_ ) {

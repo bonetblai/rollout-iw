@@ -168,11 +168,16 @@ struct BfsIW : Planner {
         assert(root->parent_ != nullptr);
         root->parent_->parent_ = nullptr;
 
-        // normalize depths and recompute path rewards
-        root->parent_->depth_ = -1;
-        root->normalize_depth();
-        root->reset_frame_rep_counters(frameskip_);
-        root->recompute_path_rewards(root);
+        // if root has rep > 0, complete children
+        if( root->frame_rep_ > 0 ) {
+            assert(0);
+        } else {
+            // normalize depths and recompute path rewards
+            root->parent_->depth_ = -1;
+            root->normalize_depth();
+            root->reset_frame_rep_counters(frameskip_);
+            root->recompute_path_rewards(root);
+        }
 
         // construct/extend lookahead tree
         if( root->num_nodes() < nodes_threshold_ )
@@ -333,12 +338,18 @@ struct BfsIW : Planner {
         if( debug_ ) logos_ << std::endl;
     }
 
-    void add_tip_nodes_to_queue(Node *node, std::priority_queue<Node*, std::vector<Node*>, NodeComparator> &q) const {
-        if( node->children_.empty() ) {
-            q.push(node);
-        } else {
-            for( size_t k = 0; k < node->children_.size(); ++k )
-                add_tip_nodes_to_queue(node->children_[k], q);
+    void add_tip_nodes_to_queue(Node *node, std::priority_queue<Node*, std::vector<Node*>, NodeComparator> &pq) const {
+        std::deque<Node*> q;
+        q.push_back(node);
+        while( !q.empty() ) {
+            Node *n = q.front();
+            q.pop_front();
+            if( n->children_.empty() ) {
+                pq.push(n);
+            } else {
+                for( size_t k = 0; k < n->children_.size(); ++k )
+                    q.push_back(n->children_[k]);
+            }
         }
     }
 

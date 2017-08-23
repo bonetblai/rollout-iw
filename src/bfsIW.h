@@ -7,6 +7,7 @@
 #include <iostream>
 #include <map>
 #include <queue>
+#include <set>
 #include <string>
 #include <vector>
 #include <ale_interface.hpp>
@@ -168,14 +169,20 @@ struct BfsIW : Planner {
         assert(root->parent_ != nullptr);
         root->parent_->parent_ = nullptr;
 
-        // if root has frame rep > 0, complete children
-        if( root->frame_rep_ > 0 ) {
-            assert(root->children_.size() == 1);
-            Node *child = root->children_[0];
+        // if root has some children, make sure it has all children
+        if( !root->children_.empty() ) {
+            std::set<Action> root_actions;
+            for( size_t k = 0; k < root->children_.size(); ++k )
+                root_actions.insert(root->children_[k]->action_);
+
+            // complete children
             const ActionVect &actions = use_minimal_action_set_ ? minimal_action_set_ : legal_action_set_;
-            for( size_t k = 0; k < actions.size(); ++k ) {
-                if( actions[k] != child->action_ )
-                    root->expand(actions[k]);
+            assert(root->children_.size() <= actions.size());
+            if( root->children_.size() < actions.size() ) {
+                for( size_t k = 0; k < actions.size(); ++k ) {
+                    if( root_actions.find(actions[k]) == root_actions.end() )
+                        root->expand(actions[k]);
+                }
             }
             assert(root->children_.size() == actions.size());
         }

@@ -1,7 +1,4 @@
 // (c) 2017 Blai Bonet
-//
-// TODO:
-//   - feature stratification
 
 #ifndef SCREEN_H
 #define SCREEN_H
@@ -17,7 +14,6 @@
 
 struct MyALEScreen {
     const int type_; // type=0: no features, type=1: basic features, type=2: basic + B-PROS, type=3: basic + B-PROS + B-PROT
-    const bool stratification_;
     const bool debug_;
     std::ostream &logos_;
     const ALEScreen &screen_;
@@ -46,7 +42,6 @@ struct MyALEScreen {
                 const std::vector<int> *prev_screen_state_atoms = nullptr,
                 bool debug = false)
       : type_(type),
-        stratification_(false),
         debug_(debug),
         logos_(logos),
         screen_(ale.getScreen()) {

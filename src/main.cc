@@ -36,7 +36,7 @@ size_t g_acc_height = 0;
 size_t g_acc_expanded = 0;
 
 
-void run_trial(ALEInterface &env, ostream &logos, const Planner &planner, bool execute_single_action, size_t frameskip, size_t max_execution_length_in_frames, vector<Action> &prefix) {
+void run_trial(ALEInterface &env, ostream &logos, const Planner &planner, int execute_prefix, bool execute_single_action, size_t frameskip, size_t max_execution_length_in_frames, vector<Action> &prefix) {
     assert(prefix.empty());
 
     env.reset_game();
@@ -163,6 +163,7 @@ int main(int argc, char **argv) {
     // options for online execution
     float online_budget;
     bool execute_single_action = false;
+    int execute_prefix;
 
     // planner
     string planner_str;
@@ -177,7 +178,7 @@ int main(int argc, char **argv) {
     int nodes_threshold;
 
     // options for rollout planner
-    bool feature_stratification = false;
+    //bool feature_stratification = false;
     int max_depth;
 
     // options for bfs planner
@@ -215,6 +216,7 @@ int main(int argc, char **argv) {
       // options for online execution
       ("online-budget", po::value<float>(&online_budget)->default_value(numeric_limits<float>::infinity()), "set time budget for online decision making (default is infinite)")
       ("execute-single-action", "execute only one action from best branch in lookahead (default is to execute prefix until first reward")
+      ("execute-prefix", po::value<int>(&execute_prefix)->default_value(1), "set prefix length to execute (default is 1)")
 
       // planners
       ("planner", po::value<string>(&planner_str)->default_value(string("rollout")), "set planner, either 'rollout' or 'bfs'")
@@ -227,7 +229,7 @@ int main(int argc, char **argv) {
       ("nodes-threshold", po::value<int>(&nodes_threshold)->default_value(50000), "set threshold for expanding look-ahead tree (default is 50,000 nodes)")
 
       // options for rollout planner
-      ("feature-stratification", "turn on feature stratification (default is off)")
+      //("feature-stratification", "turn on feature stratification (default is off)")
       ("max-depth", po::value<int>(&max_depth)->default_value(1500), "set max depth for lookahead (default is 1500)")
 
       // optiosn for bfs planner
@@ -256,7 +258,7 @@ int main(int argc, char **argv) {
     novelty_subtables = opt_varmap.count("novelty-subtables");
     random_actions = opt_varmap.count("random-actions");
     use_alpha_to_update_reward_for_death = opt_varmap.count("use-alpha-to-update-reward-for-death");
-    feature_stratification = opt_varmap.count("feature-stratification");
+    //feature_stratification = opt_varmap.count("feature-stratification");
     break_ties_using_rewards = opt_varmap.count("break-ties-using-rewards");
 
     ostream *logos = &cout;
@@ -342,7 +344,7 @@ int main(int argc, char **argv) {
                                     alpha,
                                     use_alpha_to_update_reward_for_death,
                                     nodes_threshold,
-                                    feature_stratification,
+                                    //feature_stratification,
                                     max_depth,
                                     debug);
         } else if( planner_str == "bfs" ) {
@@ -374,7 +376,7 @@ int main(int argc, char **argv) {
     for( size_t k = 0; k < num_episodes; ++k ) {
         vector<Action> prefix;
         float start_time = Utils::read_time_in_seconds();
-        run_trial(env, *logos, *planner, execute_single_action, frameskip, max_execution_length_in_frames, prefix);
+        run_trial(env, *logos, *planner, execute_prefix, execute_single_action, frameskip, max_execution_length_in_frames, prefix);
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
         *logos << "episode-stats:"
                << " rom=" << atari_rom

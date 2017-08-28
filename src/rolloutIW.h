@@ -31,7 +31,6 @@ struct RolloutIW : Planner {
     const float alpha_;
     const bool use_alpha_to_update_reward_for_death_;
     const int nodes_threshold_;
-    const bool feature_stratification_;
     const size_t max_depth_;
     const bool debug_;
 
@@ -70,7 +69,6 @@ struct RolloutIW : Planner {
               float alpha,
               bool use_alpha_to_update_reward_for_death,
               int nodes_threshold,
-              bool feature_stratification,
               size_t max_depth,
               bool debug = false)
       : sim_(sim),
@@ -87,7 +85,6 @@ struct RolloutIW : Planner {
         alpha_(alpha),
         use_alpha_to_update_reward_for_death_(use_alpha_to_update_reward_for_death),
         nodes_threshold_(nodes_threshold),
-        feature_stratification_(feature_stratification),
         max_depth_(max_depth),
         debug_(debug) {
         //static_assert(std::numeric_limits<float>::is_iec559, "IEEE 754 required");
@@ -112,7 +109,6 @@ struct RolloutIW : Planner {
           + ",alpha=" + std::to_string(alpha_)
           + ",use-alpha-to-update-reward-for-death=" + std::to_string(use_alpha_to_update_reward_for_death_)
           + ",nodes-threshold=" + std::to_string(nodes_threshold_)
-          + ",stratification=" + std::to_string(feature_stratification_)
           + ",max-depth=" + std::to_string(max_depth_)
           + ",debug=" + std::to_string(debug_)
           + ")";
@@ -204,6 +200,18 @@ struct RolloutIW : Planner {
         // construct/extend lookahead tree
         if( root->num_nodes() < nodes_threshold_ ) {
             float elapsed_time = Utils::read_time_in_seconds() - start_time;
+
+            // clear solved labels
+            clear_solved_labels(root);
+            root->parent_->solved_ = false;
+            while( !root->solved_ && (elapsed_time < online_budget_) ) {
+                if( debug_ ) logos_ << '.' << std::flush;
+                std::pair<bool, bool> rewards_seen_in_rollout;
+                rollout(prefix, root, screen_features_type_, max_depth_, max_rep_, alpha_, use_alpha_to_update_reward_for_death_, novelty_table_map, rewards_seen_in_rollout);
+                rewards_seen.insert(rewards_seen_in_rollout);
+                elapsed_time = Utils::read_time_in_seconds() - start_time;
+            }
+#if 0
             int first_level = feature_stratification_ && (screen_features_type_ > 0) ? 1 : screen_features_type_;
             for( int level = first_level; level <= screen_features_type_; ++level ) {
                 if( debug_ ) logos_ << Utils::magenta() << "layer:" << Utils::normal() << " level=" << level << ", rollouts=" << std::flush;
@@ -234,6 +242,7 @@ struct RolloutIW : Planner {
                 }
                 if( debug_ ) logos_ << std::endl;
             }
+#endif
         }
 
         // backup values and calculate heights

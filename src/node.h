@@ -61,10 +61,11 @@ class Node {
     void expand(Action action) {
         children_.push_back(new Node(this, action, 1 + depth_));
     }
-    void expand(const ActionVect &actions) {
+    void expand(const ActionVect &actions, bool random_shuffle = true) {
         assert(children_.empty());
         for( size_t k = 0; k < actions.size(); ++k )
             expand(actions[k]);
+        if( random_shuffle ) std::random_shuffle(children_.begin(), children_.end());
         assert(children_.size() == actions.size());
     }
 

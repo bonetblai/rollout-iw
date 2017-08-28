@@ -335,9 +335,9 @@ struct BfsIW : Planner {
                 ++num_expansions_;
                 float start_time = Utils::read_time_in_seconds();
                 if( use_minimal_action_set_ )
-                    node->expand(minimal_action_set_);
+                    node->expand(minimal_action_set_, false);
                 else
-                    node->expand(legal_action_set_);
+                    node->expand(legal_action_set_, false);
                 expand_time_ += Utils::read_time_in_seconds() - start_time;
             } else {
                 assert((node->parent_ != nullptr) && (screen_features_level > 0));

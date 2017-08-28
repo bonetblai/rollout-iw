@@ -267,44 +267,16 @@ struct RolloutIW : Planner {
         // compute branch
         if( root->value_ > 0 ) {
             root->best_branch(branch, discount_);
-#if 0
-            size_t branch_size = branch.size();
-            do {
-                float branch_value_before_tip_lookahead = root->value_;
-                //do_lookahead_at_branch_tip(root, sim_state, branch, 10);
-                float branch_value_after_tip_lookahead = root->backup_values_along_branch(branch, discount_);
-                logos_ << "values: branch-before=" << branch_value_before_tip_lookahead
-                       << ", branch-after=" << branch_value_after_tip_lookahead
-                       << ", root=" << root->value_
-                       << std::endl;
-                assert(root->value_ >= branch_value_after_tip_lookahead);
-                if( (branch_value_after_tip_lookahead > 0) || (root->value_ <= 0) ) {
-                    if( branch_value_after_tip_lookahead > 0 ) {
-                        assert(root->value_ > 0);
-                        while( branch.size() > branch_size )
-                            branch.pop_back();
-                    }
-                    break;
-                } else {
-                    assert(root->value_ > 0);
-                    branch.clear();
-                    root->best_branch(branch, discount_);
-                    branch_size = branch.size();
-                }
-            } while( root->value_ > 0 );
-#endif
-        }
-
-        if( root->value_ == 0 ) {
+        } else if( root->value_ == 0 ) {
             if( random_actions_ ) {
                 random_decision_ = true;
                 branch.push_back(random_action());
             } else {
                 root->longest_zero_value_branch(branch, discount_);
-                size_t n = branch.size() >> 1;
-                n = n == 0 ? 1 : n;
-                while( branch.size() > n )
-                    branch.pop_back();
+                //size_t n = branch.size() >> 1;
+                //n = n == 0 ? 1 : n;
+                //while( branch.size() > n )
+                //    branch.pop_back();
             }
         } else if( root->value_ < 0 ) {
             root->best_branch(branch, discount_);

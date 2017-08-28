@@ -221,18 +221,16 @@ struct BfsIW : Planner {
         // compute branch
         if( root->value_ > 0 ) {
             root->best_branch(branch, discount_);
-        }
-
-        if( root->value_ == 0 ) {
+        } else if( root->value_ == 0 ) {
             if( random_actions_ ) {
                 random_decision_ = true;
                 branch.push_back(random_action());
             } else {
                 root->longest_zero_value_branch(branch, discount_);
-                size_t n = branch.size() >> 1;
-                n = n == 0 ? 1 : n;
-                while( branch.size() > n )
-                    branch.pop_back();
+                //size_t n = branch.size() >> 1;
+                //n = n == 0 ? 1 : n;
+                //while( branch.size() > n )
+                //    branch.pop_back();
             }
         } else if( root->value_ < 0 ) {
             root->best_branch(branch, discount_);

@@ -272,7 +272,7 @@ int main(int argc, char **argv) {
       ("simulator-budget", po::value<int>(&opt_simulator_budget)->default_value(150000), "set budget for #calls to simulator for online decision making (default is 150k)")
       ("time-budget", po::value<float>(&opt_time_budget)->default_value(numeric_limits<float>::infinity()), "set time budget for online decision making (default is infinite)")
       ("execute-single-action", "execute only one action from best branch in lookahead (default is to execute prefix until first reward")
-      ("prefix-length-to-execute", po::value<float>(&opt_prefix_length_to_execute)->default_value(0.5), "set \% of prefix to execute (default is 0.5)")
+      ("prefix-length-to-execute", po::value<float>(&opt_prefix_length_to_execute)->default_value(0.0), "set \% of prefix to execute (default is 0 = execute until positive reward)")
 
       // planners
       ("planner", po::value<string>(&opt_planner_str)->default_value(string("rollout")), "set planner, either 'rollout' or 'bfs'")

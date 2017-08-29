@@ -20,6 +20,7 @@ $IW_ROOT/src/rom_planner \
   --disable-caching \
   --random-actions \
   --alpha 1 \
+  --execute-single-action \
   --break-ties-using-rewards \
   --planner $algorithm \
   --frameskip $frameskip \
@@ -31,6 +32,7 @@ $IW_ROOT/src/rom_planner \
 #$IW_ROOT/src/rom_planner \
 #  --random-actions \
 #  --alpha 1 \
+#  --execute-single-action \
 #  --break-ties-using-rewards \
 #  --planner $algorithm \
 #  --frameskip $frameskip \
@@ -43,6 +45,7 @@ $IW_ROOT/src/rom_planner \
 #  --disable-caching \
 #  --alpha 1000 \
 #  --use-alpha-to-update-reward-for-death \
+#  --execute-single-action \
 #  --break-ties-using-rewards \
 #  --planner $algorithm \
 #  --frameskip $frameskip \
@@ -54,6 +57,7 @@ $IW_ROOT/src/rom_planner \
 #$IW_ROOT/src/rom_planner \
 #  --alpha 1000 \
 #  --use-alpha-to-update-reward-for-death \
+#  --execute-single-action \
 #  --break-ties-using-rewards \
 #  --planner $algorithm \
 #  --frameskip $frameskip \

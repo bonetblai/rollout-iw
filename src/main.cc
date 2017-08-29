@@ -36,13 +36,17 @@ size_t g_acc_height = 0;
 size_t g_acc_expanded = 0;
 
 
-void run_trial(ALEInterface &env, ostream &logos, const Planner &planner, int execute_prefix, bool execute_single_action, size_t frameskip, size_t max_execution_length_in_frames, vector<Action> &prefix) {
+void run_episode(ALEInterface &env,
+                 ostream &logos,
+                 const Planner &planner,
+                 int initial_noops,
+                 bool lookahead_tree_caching,
+                 int execute_prefix,
+                 bool execute_single_action,
+                 size_t frameskip,
+                 size_t max_execution_length_in_frames,
+                 vector<Action> &prefix) {
     assert(prefix.empty());
-
-    env.reset_game();
-    deque<Action> branch;
-    prefix.push_back(planner.random_action());
-    Node *node = nullptr;
 
     g_acc_reward = 0;
     g_acc_simulator_calls = 0;
@@ -53,8 +57,29 @@ void run_trial(ALEInterface &env, ostream &logos, const Planner &planner, int ex
     g_acc_height = 0;
     g_acc_expanded = 0;
 
-    float last_reward = env.act(prefix.back());
-    g_acc_reward = last_reward;
+    // fill initial prefix
+    if( initial_noops == 0 ) {
+        prefix.push_back(planner.random_action());
+    } else {
+        assert(initial_noops > 0);
+        while( initial_noops-- > 0 )
+            prefix.push_back(Action(0));
+    }
+
+    // reset simulator
+    env.reset_game();
+
+    // execute actions in initial prefix
+    float last_reward = numeric_limits<float>::infinity();
+    for( size_t k = 0; k < prefix.size(); ++k ) {
+        last_reward = env.act(prefix[k]);
+        g_acc_reward += last_reward;
+    }
+    assert(last_reward != numeric_limits<float>::infinity());
+
+    // play
+    Node *node = nullptr;
+    deque<Action> branch;
     for( size_t frame = 0; !env.game_over() && (frame < max_execution_length_in_frames); frame += frameskip ) {
         // if empty branch, get branch
         if( branch.empty() ) {
@@ -82,10 +107,18 @@ void run_trial(ALEInterface &env, ostream &logos, const Planner &planner, int ex
 
         // apply action
         last_reward = env.act(action);
-        if( node != nullptr ) node = node->advance(action);
         prefix.push_back(action);
         g_acc_reward += last_reward;
         g_acc_num_frames += frameskip;
+
+        // advance/destroy lookhead tree
+        if( lookahead_tree_caching ) {
+            if( node != nullptr )
+                node = node->advance(action);
+        } else {
+            remove_tree(node);
+            node = nullptr;
+        }
 
         // prune branch if got positive reward
         if( execute_single_action || (last_reward > 0) )
@@ -136,101 +169,107 @@ void usage(ostream &os, const po::options_description &opt_desc) {
 
 int main(int argc, char **argv) {
     // general options
-    int random_seed;
-    bool debug = false;
-    int frameskip;
-    bool display = true;
-    bool sound = false;
-    string rec_dir;
-    string rec_sound_filename;
-    bool use_minimal_action_set = false;
+    int opt_random_seed;
+    bool opt_debug = false;
+    int opt_frameskip;
+    bool opt_display = true;
+    bool opt_sound = false;
+    string opt_rec_dir;
+    string opt_rec_sound_filename;
+    bool opt_use_minimal_action_set = false;
 
     // number of episodes and execution length
-    int num_episodes;
-    int max_execution_length_in_frames;
+    int opt_num_episodes;
+    int opt_max_execution_length_in_frames;
 
     // simulate previous execution
-    string fixed_action_sequence;
+    string opt_fixed_action_sequence;
 
     // rom and log files
-    string log_file;
-    string atari_rom;
+    string opt_log_file;
+    string opt_rom;
 
     // features
-    int screen_features;
-    int num_frames_for_background_image;
+    int opt_screen_features;
+    int opt_num_frames_for_background_image;
 
     // options for online execution
-    float online_budget;
-    bool execute_single_action = false;
-    int execute_prefix;
+    int opt_initial_random_noops;
+    bool opt_lookahead_tree_caching = true;
+    int opt_simulator_budget;
+    float opt_time_budget;
+    bool opt_execute_single_action = false;
+    int opt_execute_prefix;
 
     // planner
-    string planner_str;
+    string opt_planner_str;
 
     // options for both planners
-    bool novelty_subtables = false;
-    bool random_actions = false;
-    int max_rep;
-    float discount;
-    float alpha;
-    bool use_alpha_to_update_reward_for_death = false;
-    int nodes_threshold;
+    bool opt_novelty_subtables = false;
+    bool opt_random_actions = false;
+    int opt_max_rep;
+    float opt_discount;
+    float opt_alpha;
+    bool opt_use_alpha_to_update_reward_for_death = false;
+    int opt_nodes_threshold;
 
     // options for rollout planner
     //bool feature_stratification = false;
-    int max_depth;
+    int opt_max_depth;
 
     // options for bfs planner
-    bool break_ties_using_rewards = false;
+    bool opt_break_ties_using_rewards = false;
 
     // declare supported options
     po::options_description opt_desc("Allowed options");
     opt_desc.add_options()
       // general options
       ("help", "help message")
-      ("seed", po::value<int>(&random_seed)->default_value(0), "set random seed")
+      ("seed", po::value<int>(&opt_random_seed)->default_value(0), "set random seed")
       ("debug", "turn on debug (default is off)")
-      ("frameskip", po::value<int>(&frameskip)->default_value(5), "set frame skip rate")
+      ("frameskip", po::value<int>(&opt_frameskip)->default_value(5), "set frame skip rate")
       ("nodisplay", "turn off display (default is display)")
       ("sound", "turn on sound (default is no sound)")
-      ("rec-dir", po::value<string>(&rec_dir), "set folder for recording (default is \"\" for no recording)")
-      ("rec-sound-filename", po::value<string>(&rec_sound_filename), "set filename for recording sound (default is \"\" for no recording)")
+      ("rec-dir", po::value<string>(&opt_rec_dir), "set folder for recording (default is \"\" for no recording)")
+      ("rec-sound-filename", po::value<string>(&opt_rec_sound_filename), "set filename for recording sound (default is \"\" for no recording)")
       ("minimal-action-set", "turn on minimal action set instead of larger legal action set")
 
       // number of episodes and execution length
-      ("num-episodes", po::value<int>(&num_episodes)->default_value(1), "set number of episodes (default is 1)")
-      ("max-execution-length", po::value<int>(&max_execution_length_in_frames)->default_value(18000), "set max number of frames in single execution (default is 18k frames)")
+      ("num-episodes", po::value<int>(&opt_num_episodes)->default_value(1), "set number of episodes (default is 1)")
+      ("max-execution-length", po::value<int>(&opt_max_execution_length_in_frames)->default_value(18000), "set max number of frames in single execution (default is 18k frames)")
 
       // simulate previous execution
-      ("fixed-action-sequence", po::value<string>(&fixed_action_sequence), "pass fixed action sequence that provides actions (default is \"\" for no such sequence")
+      ("fixed-action-sequence", po::value<string>(&opt_fixed_action_sequence), "pass fixed action sequence that provides actions (default is \"\" for no such sequence")
 
       // rom and log files
-      ("log-file", po::value<string>(&log_file), "set path to log file (default is \"\" for no logging)")
-      ("rom", po::value<string>(&atari_rom), "set Atari ROM")
+      ("log-file", po::value<string>(&opt_log_file), "set path to log file (default is \"\" for no logging)")
+      ("rom", po::value<string>(&opt_rom), "set Atari ROM")
 
       // features
-      ("features", po::value<int>(&screen_features)->default_value(0), "set feature set: 0=RAM, 1=basic, 2=basic+B-PROS, 3=basic+B-PROS+B-PROT (default is 0)")
-      ("frames-background-image", po::value<int>(&num_frames_for_background_image)->default_value(100), "set number of random frames to compute background image (default is 100 frames)")
+      ("features", po::value<int>(&opt_screen_features)->default_value(0), "set feature set: 0=RAM, 1=basic, 2=basic+B-PROS, 3=basic+B-PROS+B-PROT (default is 0)")
+      ("frames-background-image", po::value<int>(&opt_num_frames_for_background_image)->default_value(100), "set number of random frames to compute background image (default is 100 frames)")
 
       // options for online execution
-      ("online-budget", po::value<float>(&online_budget)->default_value(numeric_limits<float>::infinity()), "set time budget for online decision making (default is infinite)")
+      ("initial-random-noops", po::value<int>(&opt_initial_random_noops)->default_value(30), "set max number of initial noops, actual # is sampled (default is 30)")
+      ("disable-caching", "disable caching of states from previous to current decision (i.e., fully discard lookahead tree) (default is caching)")
+      ("simulator-budget", po::value<int>(&opt_simulator_budget)->default_value(150000), "set budget for #calls to simulator for online decision making (default is 150k)")
+      ("time-budget", po::value<float>(&opt_time_budget)->default_value(numeric_limits<float>::infinity()), "set time budget for online decision making (default is infinite)")
       ("execute-single-action", "execute only one action from best branch in lookahead (default is to execute prefix until first reward")
-      ("execute-prefix", po::value<int>(&execute_prefix)->default_value(1), "set prefix length to execute (default is 1)")
+      ("execute-prefix", po::value<int>(&opt_execute_prefix)->default_value(1), "set prefix length to execute (default is 1)")
 
       // planners
-      ("planner", po::value<string>(&planner_str)->default_value(string("rollout")), "set planner, either 'rollout' or 'bfs'")
+      ("planner", po::value<string>(&opt_planner_str)->default_value(string("rollout")), "set planner, either 'rollout' or 'bfs'")
       ("novelty-subtables", "turn on use of novelty subtables (default is to use single table)")
       ("random-actions", "use random action when there are no rewards in look-ahead tree (default is off)")
-      ("max-rep", po::value<int>(&max_rep)->default_value(30), "set max rep(etition) of screen features during lookahead (default is 30 frames)")
-      ("discount", po::value<float>(&discount)->default_value(1.0), "set discount factor for lookahead (default is 1.0)")
-      ("alpha", po::value<float>(&alpha)->default_value(10000.0), "set alpha value for lookahead (default is 10,000)")
+      ("max-rep", po::value<int>(&opt_max_rep)->default_value(30), "set max rep(etition) of screen features during lookahead (default is 30 frames)")
+      ("discount", po::value<float>(&opt_discount)->default_value(1.0), "set discount factor for lookahead (default is 1.0)")
+      ("alpha", po::value<float>(&opt_alpha)->default_value(10000.0), "set alpha value for lookahead (default is 10,000)")
       ("use-alpha-to-update-reward-for-death", "assign a big negative reward, depending on alpha's value, for deaths (default is off)")
-      ("nodes-threshold", po::value<int>(&nodes_threshold)->default_value(50000), "set threshold for expanding look-ahead tree (default is 50,000 nodes)")
+      ("nodes-threshold", po::value<int>(&opt_nodes_threshold)->default_value(50000), "set threshold for expanding look-ahead tree (default is 50,000 nodes)")
 
       // options for rollout planner
       //("feature-stratification", "turn on feature stratification (default is off)")
-      ("max-depth", po::value<int>(&max_depth)->default_value(1500), "set max depth for lookahead (default is 1500)")
+      ("max-depth", po::value<int>(&opt_max_depth)->default_value(1500), "set max depth for lookahead (default is 1500)")
 
       // optiosn for bfs planner
       ("break-ties-using-rewards", "break ties in favor of better rewards during bfs (default is no tie breaking)")
@@ -250,23 +289,24 @@ int main(int argc, char **argv) {
     }
 
     // set default values
-    debug = opt_varmap.count("debug");
-    display = !opt_varmap.count("nodisplay");
-    sound = opt_varmap.count("sound");
-    use_minimal_action_set = opt_varmap.count("use-minimal-action-set");
-    execute_single_action = opt_varmap.count("execute-single-action");
-    novelty_subtables = opt_varmap.count("novelty-subtables");
-    random_actions = opt_varmap.count("random-actions");
-    use_alpha_to_update_reward_for_death = opt_varmap.count("use-alpha-to-update-reward-for-death");
+    opt_debug = opt_varmap.count("debug");
+    opt_display = !opt_varmap.count("nodisplay");
+    opt_sound = opt_varmap.count("sound");
+    opt_use_minimal_action_set = opt_varmap.count("use-minimal-action-set");
+    opt_lookahead_tree_caching = !opt_varmap.count("disable-caching");
+    opt_execute_single_action = opt_varmap.count("execute-single-action");
+    opt_novelty_subtables = opt_varmap.count("novelty-subtables");
+    opt_random_actions = opt_varmap.count("random-actions");
+    opt_use_alpha_to_update_reward_for_death = opt_varmap.count("use-alpha-to-update-reward-for-death");
     //feature_stratification = opt_varmap.count("feature-stratification");
-    break_ties_using_rewards = opt_varmap.count("break-ties-using-rewards");
+    opt_break_ties_using_rewards = opt_varmap.count("break-ties-using-rewards");
 
     ostream *logos = &cout;
     if( opt_varmap.count("log-file") )
-        logos = new ofstream(log_file);
+        logos = new ofstream(opt_log_file);
 
     // check whether there is something to be done
-    if( opt_varmap.count("help") || (atari_rom == "") ) {
+    if( opt_varmap.count("help") || (opt_rom == "") ) {
         usage(cout, opt_desc);
         exit(1);
     }
@@ -274,31 +314,29 @@ int main(int argc, char **argv) {
     // print command-line options
     print_options(*logos, opt_varmap);
 
-    // set random seed for lrand48()
-    unsigned short seed[3];
-    seed[0] = seed[1] = seed[2] = random_seed;
-    seed48(seed);
+    // set random seed for lrand48() and drand48()
+    srand48(opt_random_seed);
 
     // create ALEs
     ALEInterface env, sim;
 
     // get/set desired settings
-    env.setInt("frame_skip", frameskip);
-    env.setInt("random_seed", random_seed);
+    env.setInt("frame_skip", opt_frameskip);
+    env.setInt("random_seed", opt_random_seed);
     env.setFloat("repeat_action_probability", 0.00);
-    sim.setInt("frame_skip", frameskip);
-    sim.setInt("random_seed", random_seed);
+    sim.setInt("frame_skip", opt_frameskip);
+    sim.setInt("random_seed", opt_random_seed);
     sim.setFloat("repeat_action_probability", 0.00);
-    fs::path rom_path(atari_rom);
+    fs::path rom_path(opt_rom);
 
 #ifdef __USE_SDL
-    env.setBool("display_screen", display);
-    env.setBool("sound", sound);
-    if( rec_dir != "" ) {
-        string full_rec_dir = rec_dir + "/" + rom_path.filename().string();
+    env.setBool("display_screen", opt_display);
+    env.setBool("sound", opt_sound);
+    if( opt_rec_dir != "" ) {
+        string full_rec_dir = opt_rec_dir + "/" + rom_path.filename().string();
         env.setString("record_screen_dir", full_rec_dir.c_str());
-        if( rec_sound_filename != "" )
-            env.setString("record_sound_filename", (full_rec_dir + "/" + rec_sound_filename).c_str());
+        if( opt_rec_sound_filename != "" )
+            env.setString("record_sound_filename", (full_rec_dir + "/" + opt_rec_sound_filename).c_str());
         fs::create_directories(full_rec_dir);
     }
 #endif
@@ -308,84 +346,92 @@ int main(int argc, char **argv) {
     sim.loadROM(rom_path.string().c_str());
 
     // initialize static members for screen features
-    if( screen_features > 0 ) {
+    if( opt_screen_features > 0 ) {
         MyALEScreen::create_background_image();
-        MyALEScreen::compute_background_image(sim, *logos, num_frames_for_background_image, true);
+        MyALEScreen::compute_background_image(sim, *logos, opt_num_frames_for_background_image, true);
     }
 
     // construct planner
     Planner *planner = nullptr;
-    if( fixed_action_sequence != "" ) {
+    if( opt_fixed_action_sequence != "" ) {
         vector<Action> actions;
-        parse_action_sequence(fixed_action_sequence, actions);
+        parse_action_sequence(opt_fixed_action_sequence, actions);
         planner = new FixedPlanner(actions);
     } else {
         size_t num_tracked_atoms = 0;
-        if( screen_features == 0 ) { // RAM mode
+        if( opt_screen_features == 0 ) { // RAM mode
             num_tracked_atoms = 128 * 256; // this is for RAM: 128 8-bit entries
         } else {
             num_tracked_atoms = 16 * 14 * 128; // 28,672
-            num_tracked_atoms += screen_features > 1 ? 6856768 : 0;
-            num_tracked_atoms += screen_features > 2 ? 13713408 : 0;
+            num_tracked_atoms += opt_screen_features > 1 ? 6856768 : 0;
+            num_tracked_atoms += opt_screen_features > 2 ? 13713408 : 0;
         }
 
-        if( planner_str == "rollout" ) {
+        if( opt_planner_str == "rollout" ) {
             planner = new RolloutIW(sim,
                                     *logos,
-                                    frameskip,
-                                    use_minimal_action_set,
+                                    opt_frameskip,
+                                    opt_use_minimal_action_set,
                                     num_tracked_atoms,
-                                    screen_features,
-                                    online_budget,
-                                    novelty_subtables,
-                                    random_actions,
-                                    max_rep,
-                                    discount,
-                                    alpha,
-                                    use_alpha_to_update_reward_for_death,
-                                    nodes_threshold,
+                                    opt_screen_features,
+                                    opt_simulator_budget,
+                                    opt_time_budget,
+                                    opt_novelty_subtables,
+                                    opt_random_actions,
+                                    opt_max_rep,
+                                    opt_discount,
+                                    opt_alpha,
+                                    opt_use_alpha_to_update_reward_for_death,
+                                    opt_nodes_threshold,
                                     //feature_stratification,
-                                    max_depth,
-                                    debug);
-        } else if( planner_str == "bfs" ) {
+                                    opt_max_depth,
+                                    opt_debug);
+        } else if( opt_planner_str == "bfs" ) {
             planner = new BfsIW(sim,
                                 *logos,
-                                frameskip,
-                                use_minimal_action_set,
+                                opt_frameskip,
+                                opt_use_minimal_action_set,
                                 num_tracked_atoms,
-                                screen_features,
-                                online_budget,
-                                novelty_subtables,
-                                random_actions,
-                                max_rep,
-                                discount,
-                                alpha,
-                                use_alpha_to_update_reward_for_death,
-                                nodes_threshold,
-                                break_ties_using_rewards,
-                                debug);
+                                opt_screen_features,
+                                opt_simulator_budget,
+                                opt_time_budget,
+                                opt_novelty_subtables,
+                                opt_random_actions,
+                                opt_max_rep,
+                                opt_discount,
+                                opt_alpha,
+                                opt_use_alpha_to_update_reward_for_death,
+                                opt_nodes_threshold,
+                                opt_break_ties_using_rewards,
+                                opt_debug);
         } else {
-            *logos << Utils::error() << " inexistent planner '" << planner_str << "'" << endl;
+            *logos << Utils::error() << " inexistent planner '" << opt_planner_str << "'" << endl;
             exit(1);
         }
     }
     assert(planner != nullptr);
     *logos << "planner=" << planner->name() << endl;
 
+    // set number of initial noops
+    assert(opt_initial_random_noops > 0);
+    int initial_noops = lrand48() % opt_initial_random_noops;
+
     // play
-    for( size_t k = 0; k < num_episodes; ++k ) {
+    for( size_t k = 0; k < opt_num_episodes; ++k ) {
         vector<Action> prefix;
         float start_time = Utils::read_time_in_seconds();
-        run_trial(env, *logos, *planner, execute_prefix, execute_single_action, frameskip, max_execution_length_in_frames, prefix);
+        run_episode(env, *logos, *planner, initial_noops, opt_lookahead_tree_caching, opt_execute_prefix, opt_execute_single_action, opt_frameskip, opt_max_execution_length_in_frames, prefix);
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
         *logos << "episode-stats:"
-               << " rom=" << atari_rom
-               << " planner=" << planner_str
-               << " budget=" << online_budget
-               << " features=" << screen_features
-               << " novelty-subtables=" << novelty_subtables
-               << " random-actions=" << random_actions
-               << " frameskip=" << frameskip
+               << " rom=" << opt_rom
+               << " planner=" << opt_planner_str
+               << " seed=" << opt_random_seed
+               << " simulator-budget=" << opt_simulator_budget
+               << " time-budget=" << opt_time_budget
+               << " features=" << opt_screen_features
+               << " novelty-subtables=" << opt_novelty_subtables
+               << " random-actions=" << opt_random_actions
+               << " frameskip=" << opt_frameskip
                << " simulator-calls=" << g_acc_simulator_calls
                << " max-simulator-calls=" << g_max_simulator_calls
                << " avg-simulator-calls=" << float(g_acc_simulator_calls) / float(g_acc_num_decisions)

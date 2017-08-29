@@ -23,7 +23,8 @@ struct RolloutIW : Planner {
     const bool use_minimal_action_set_;
     const size_t num_tracked_atoms_;
     const int screen_features_type_;
-    const float online_budget_;
+    const int simulator_budget_;
+    const float time_budget_;
     const bool novelty_subtables_;
     const bool random_actions_;
     const size_t max_rep_;
@@ -61,7 +62,8 @@ struct RolloutIW : Planner {
               bool use_minimal_action_set,
               size_t num_tracked_atoms,
               int screen_features_type,
-              float online_budget,
+              int simulator_budget,
+              float time_budget,
               bool novelty_subtables,
               bool random_actions,
               size_t max_rep,
@@ -77,7 +79,8 @@ struct RolloutIW : Planner {
         use_minimal_action_set_(use_minimal_action_set),
         num_tracked_atoms_(num_tracked_atoms),
         screen_features_type_(screen_features_type),
-        online_budget_(online_budget),
+        simulator_budget_(simulator_budget),
+        time_budget_(time_budget),
         novelty_subtables_(novelty_subtables),
         random_actions_(random_actions),
         max_rep_(max_rep),
@@ -101,7 +104,8 @@ struct RolloutIW : Planner {
           + "frameskip=" + std::to_string(frameskip_)
           + ",minimal-action-set=" + std::to_string(use_minimal_action_set_)
           + ",features=" + std::to_string(screen_features_type_)
-          + ",online-budget=" + std::to_string(online_budget_)
+          + ",simulator-budget=" + std::to_string(simulator_budget_)
+          + ",time-budget=" + std::to_string(time_budget_)
           + ",novelty-subtables=" + std::to_string(novelty_subtables_)
           + ",random-actions=" + std::to_string(random_actions_)
           + ",max-rep=" + std::to_string(max_rep_)
@@ -204,7 +208,7 @@ struct RolloutIW : Planner {
             // clear solved labels
             clear_solved_labels(root);
             root->parent_->solved_ = false;
-            while( !root->solved_ && (elapsed_time < online_budget_) ) {
+            while( !root->solved_ && (simulator_calls_ < simulator_budget_) && (elapsed_time < time_budget_) ) {
                 if( debug_ ) logos_ << '.' << std::flush;
                 std::pair<bool, bool> rewards_seen_in_rollout;
                 rollout(prefix, root, screen_features_type_, max_depth_, max_rep_, alpha_, use_alpha_to_update_reward_for_death_, novelty_table_map, rewards_seen_in_rollout);
@@ -219,7 +223,7 @@ struct RolloutIW : Planner {
                 // clear solved labels
                 clear_solved_labels(root);
                 root->parent_->solved_ = false;
-                while( !root->solved_ && (elapsed_time < online_budget_) ) {
+                while( !root->solved_ && (elapsed_time < time_budget_) ) {
                     if( debug_ ) logos_ << '.' << std::flush;
                     std::pair<bool, bool> rewards_seen_in_rollout;
                     rollout(prefix, root, level, max_depth_, max_rep_, alpha_, use_alpha_to_update_reward_for_death_, novelty_table_map, rewards_seen_in_rollout);

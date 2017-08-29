@@ -16,8 +16,6 @@ ulimit -c 0
 
 options=${raw_options//,/ }
 
-$IW_ROOT/src/rom_planner --planner $algorithm --frameskip $frameskip --time-budget $time_budget --features $features --log-file $log_file --rom $IW_ROOT/atari-roms/$rom $options
-
 $IW_ROOT/src/rom_planner \
   --disable-caching \
   --random-actions \
@@ -31,37 +29,37 @@ $IW_ROOT/src/rom_planner \
   --rom $IW_ROOT/atari-roms/$rom $options
 
 #$IW_ROOT/src/rom_planner \
-  #  --random-actions \
-  #  --alpha 1 \
-  #  --break-ties-using-rewards \
-  #  --planner $algorithm \
-  #  --frameskip $frameskip \
-  #  --time-budget $time_budget \
-  #  --features $features \
-  #  --log-file $log_file \
-  #  --rom $IW_ROOT/atari-roms/$rom $options
+#  --random-actions \
+#  --alpha 1 \
+#  --break-ties-using-rewards \
+#  --planner $algorithm \
+#  --frameskip $frameskip \
+#  --time-budget $time_budget \
+#  --features $features \
+#  --log-file $log_file \
+#  --rom $IW_ROOT/atari-roms/$rom $options
 
 #$IW_ROOT/src/rom_planner \
-  #  --disable-caching \
-  #  --alpha 1000 \
-  #  --use-alpha-to-update-reward-for-death \
-  #  --break-ties-using-rewards \
-  #  --planner $algorithm \
-  #  --frameskip $frameskip \
-  #  --time-budget $time_budget \
-  #  --features $features \
-  #  --log-file $log_file \
-  #  --rom $IW_ROOT/atari-roms/$rom $options
+#  --disable-caching \
+#  --alpha 1000 \
+#  --use-alpha-to-update-reward-for-death \
+#  --break-ties-using-rewards \
+#  --planner $algorithm \
+#  --frameskip $frameskip \
+#  --time-budget $time_budget \
+#  --features $features \
+#  --log-file $log_file \
+#  --rom $IW_ROOT/atari-roms/$rom $options
 
 #$IW_ROOT/src/rom_planner \
-  #  --alpha 1000 \
-  #  --use-alpha-to-update-reward-for-death \
-  #  --break-ties-using-rewards \
-  #  --planner $algorithm \
-  #  --frameskip $frameskip \
-  #  --time-budget $time_budget \
-  #  --features $features \
-  #  --log-file $log_file \
-  #  --rom $IW_ROOT/atari-roms/$rom $options
+#  --alpha 1000 \
+#  --use-alpha-to-update-reward-for-death \
+#  --break-ties-using-rewards \
+#  --planner $algorithm \
+#  --frameskip $frameskip \
+#  --time-budget $time_budget \
+#  --features $features \
+#  --log-file $log_file \
+#  --rom $IW_ROOT/atari-roms/$rom $options
 
 

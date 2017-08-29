@@ -41,7 +41,7 @@ void run_episode(ALEInterface &env,
                  const Planner &planner,
                  int initial_noops,
                  bool lookahead_tree_caching,
-                 int execute_prefix,
+                 float prefix_length_to_execute,
                  bool execute_single_action,
                  size_t frameskip,
                  size_t max_execution_length_in_frames,
@@ -84,21 +84,38 @@ void run_episode(ALEInterface &env,
         // if empty branch, get branch
         if( branch.empty() ) {
             ++g_acc_num_decisions;
+
             node = planner.get_branch(env, prefix, node, last_reward, branch);
             g_acc_simulator_calls += planner.simulator_calls();
             g_max_simulator_calls = std::max(g_max_simulator_calls, planner.simulator_calls());
             g_acc_num_random_decisions += planner.random_decision() ? 1 : 0;
             g_acc_height += planner.height();
             g_acc_expanded += planner.expanded();
+
             if( branch.empty() ) {
                 logos << Utils::error() << "no more available actions!" << endl;
                 break;
-            } else {
-                logos << "branch: len=" << branch.size() << ", actions=[";
-                for( size_t j = 0; j < branch.size(); ++j )
-                    logos << branch[j] << ",";
-                logos << "]" << endl;
             }
+
+            // calculate executable prefix
+            assert(prefix_length_to_execute >= 0);
+            if( !execute_single_action && (prefix_length_to_execute > 0) ) {
+                int target_branch_length = int(branch.size() * prefix_length_to_execute);
+                if( target_branch_length == 0 ) target_branch_length = 1;
+                assert(target_branch_length > 0);
+                while( branch.size() > target_branch_length )
+                    branch.pop_back();
+                assert(target_branch_length == branch.size());
+            } else if( execute_single_action ) {
+                assert(branch.size() >= 1);
+                while( branch.size() > 1 )
+                    branch.pop_back();
+            }
+
+            logos << "executable-prefix: len=" << branch.size() << ", actions=[";
+            for( size_t j = 0; j < branch.size(); ++j )
+                logos << branch[j] << ",";
+            logos << "]" << endl;
         }
 
         // select action to apply
@@ -121,7 +138,7 @@ void run_episode(ALEInterface &env,
         }
 
         // prune branch if got positive reward
-        if( execute_single_action || (last_reward > 0) )
+        if( execute_single_action || ((prefix_length_to_execute == 0) && (last_reward > 0)) )
             branch.clear();
     }
 
@@ -199,7 +216,7 @@ int main(int argc, char **argv) {
     int opt_simulator_budget;
     float opt_time_budget;
     bool opt_execute_single_action = false;
-    int opt_execute_prefix;
+    float opt_prefix_length_to_execute;
 
     // planner
     string opt_planner_str;
@@ -255,7 +272,7 @@ int main(int argc, char **argv) {
       ("simulator-budget", po::value<int>(&opt_simulator_budget)->default_value(150000), "set budget for #calls to simulator for online decision making (default is 150k)")
       ("time-budget", po::value<float>(&opt_time_budget)->default_value(numeric_limits<float>::infinity()), "set time budget for online decision making (default is infinite)")
       ("execute-single-action", "execute only one action from best branch in lookahead (default is to execute prefix until first reward")
-      ("execute-prefix", po::value<int>(&opt_execute_prefix)->default_value(1), "set prefix length to execute (default is 1)")
+      ("prefix-length-to-execute", po::value<float>(&opt_prefix_length_to_execute)->default_value(0.5), "set \% of prefix to execute (default is 0.5)")
 
       // planners
       ("planner", po::value<string>(&opt_planner_str)->default_value(string("rollout")), "set planner, either 'rollout' or 'bfs'")
@@ -420,7 +437,7 @@ int main(int argc, char **argv) {
     for( size_t k = 0; k < opt_num_episodes; ++k ) {
         vector<Action> prefix;
         float start_time = Utils::read_time_in_seconds();
-        run_episode(env, *logos, *planner, initial_noops, opt_lookahead_tree_caching, opt_execute_prefix, opt_execute_single_action, opt_frameskip, opt_max_execution_length_in_frames, prefix);
+        run_episode(env, *logos, *planner, initial_noops, opt_lookahead_tree_caching, opt_prefix_length_to_execute, opt_execute_single_action, opt_frameskip, opt_max_execution_length_in_frames, prefix);
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
         *logos << "episode-stats:"
                << " rom=" << opt_rom

@@ -6,10 +6,10 @@
 #$ -o output/OUT
 #$ -e output/ERR
 #$ -t 1-XXX
-#$ -l h_cpu=06:00:00
-#$ -l h_rt=06:00:00
+#$ -l h_cpu=24:00:00
+#$ -l h_rt=24:00:00
 #$ -l mem_free=8G
-#$ -l h_vmem=8G
+#$ -l h_vmem=12G
 # -l hostname="node01|node04|node06|node07|node08|node09|node10"
 
 export IW_ROOT=$HOME/software/github/rollout-iw
@@ -22,7 +22,7 @@ rdir=$2
 record=`awk "NR==$SGE_TASK_ID" $parameters_file`
 algorithm=`echo $record | awk '{print $1;}'`
 frameskip=`echo $record | awk '{print $2;}'`
-budget=`echo $record | awk '{print $3;}'`
+time_budget=`echo $record | awk '{print $3;}'`
 features=`echo $record | awk '{print $4;}'`
 novelty_subtables=`echo $record | awk '{print $5;}'`
 options=`echo $record | awk '{print $6;}'`
@@ -31,13 +31,13 @@ rom=`echo $record | awk '{print $7;}'`
 rom_str=${rom//\//_}
 
 output_path=$IW_ROOT/sge-results/$rdir/$rom_str
-output_file=$output_path/output.riw.alg=${algorithm}.fs=${frameskip}.b=${budget}.f=${features}.ns=${novelty_subtables}.rom=${rom_str}.txt
+output_file=$output_path/output.riw.alg=${algorithm}.fs=${frameskip}.b=${time_budget}.f=${features}.ns=${novelty_subtables}.rom=${rom_str}.txt
 
 
 mkdir -p $output_path
 
 if [ ! -f "$output_file" ]; then
-    ./experiment.sh $algorithm $frameskip $budget $features $novelty_subtables $options $rom $output_file
+    ./experiment.sh $algorithm $frameskip $time_budget $features $novelty_subtables $options $rom $output_file
 else
     echo "Doing nothing since file $output_file exists!"
 fi

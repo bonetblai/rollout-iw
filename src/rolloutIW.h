@@ -211,7 +211,15 @@ struct RolloutIW : Planner {
             while( !root->solved_ && (simulator_calls_ < simulator_budget_) && (elapsed_time < time_budget_) ) {
                 if( debug_ ) logos_ << '.' << std::flush;
                 std::pair<bool, bool> rewards_seen_in_rollout;
-                rollout(prefix, root, screen_features_type_, max_depth_, max_rep_, alpha_, use_alpha_to_update_reward_for_death_, novelty_table_map, rewards_seen_in_rollout);
+                rollout(prefix,
+                        root,
+                        screen_features_type_,
+                        max_depth_,
+                        max_rep_,
+                        alpha_,
+                        use_alpha_to_update_reward_for_death_,
+                        novelty_table_map,
+                        rewards_seen_in_rollout);
                 rewards_seen.insert(rewards_seen_in_rollout);
                 elapsed_time = Utils::read_time_in_seconds() - start_time;
             }
@@ -249,50 +257,57 @@ struct RolloutIW : Planner {
 #endif
         }
 
-        // backup values and calculate heights
-        assert(!root->children_.empty());
-        root->backup_values(discount_);
-        root->calculate_height();
-        root_height_ = root->height_;
+        // if nothing was expanded, return random actions (it can only happen with small time budget)
+        if( root->children_.empty() ) {
+            random_decision_ = true;
+            branch.push_back(random_action());
+        } else {
+            // backup values and calculate heights
+            root->backup_values(discount_);
+            root->calculate_height();
+            root_height_ = root->height_;
 
-        // print info about root node
-        if( true || debug_ ) {
-            logos_ << Utils::green()
-                   << "root:"
-                   << " solved=" << root->solved_
-                   << ", value=" << root->value_
-                   << ", imm-reward=" << root->reward_
-                   << ", children=[";
-            for( size_t k = 0; k < root->children_.size(); ++k )
-                logos_ << root->children_[k]->value_ << ":" << root->children_[k]->action_ << " ";
-            logos_ << "]" << Utils::normal() << std::endl;
-        }
-
-        // compute branch
-        if( root->value_ > 0 ) {
-            root->best_branch(branch, discount_);
-        } else if( root->value_ == 0 ) {
-            if( random_actions_ ) {
-                random_decision_ = true;
-                branch.push_back(random_action());
-            } else {
-                root->longest_zero_value_branch(branch, discount_);
-                //size_t n = branch.size() >> 1;
-                //n = n == 0 ? 1 : n;
-                //while( branch.size() > n )
-                //    branch.pop_back();
+            // print info about root node
+            if( true || debug_ ) {
+                logos_ << Utils::green()
+                       << "root:"
+                       << " solved=" << root->solved_
+                       << ", value=" << root->value_
+                       << ", imm-reward=" << root->reward_
+                       << ", children=[";
+                for( size_t k = 0; k < root->children_.size(); ++k )
+                    logos_ << root->children_[k]->value_ << ":" << root->children_[k]->action_ << " ";
+                logos_ << "]" << Utils::normal() << std::endl;
             }
-        } else if( root->value_ < 0 ) {
-            root->best_branch(branch, discount_);
-        }
-        assert(!branch.empty());
-        if( true || debug_ ) {
-            logos_ << "branch:"
-                   << " value=" << root->value_
-                   << ", size=" << branch.size()
-                   << ", actions:"
-                   << std::endl;
-            //root->print_branch(logos_, branch);
+
+            // compute branch
+            if( root->value_ > 0 ) {
+                root->best_branch(branch, discount_);
+            } else if( root->value_ == 0 ) {
+                if( random_actions_ ) {
+                    random_decision_ = true;
+                    branch.push_back(random_action());
+                } else {
+                    root->longest_zero_value_branch(branch, discount_);
+                    //size_t n = branch.size() >> 1;
+                    //n = n == 0 ? 1 : n;
+                    //while( branch.size() > n )
+                    //    branch.pop_back();
+                }
+            } else if( root->value_ < 0 ) {
+                root->best_branch(branch, discount_);
+            }
+
+            // print branch
+            assert(!branch.empty());
+            if( true || debug_ ) {
+                logos_ << "branch:"
+                       << " value=" << root->value_
+                       << ", size=" << branch.size()
+                       << ", actions:"
+                       << std::endl;
+                //root->print_branch(logos_, branch);
+            }
         }
 
         // stop timer and print stats

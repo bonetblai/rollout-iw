@@ -201,52 +201,68 @@ struct BfsIW : Planner {
         root->recompute_path_rewards(root);
 
         // construct/extend lookahead tree
-        if( root->num_nodes() < nodes_threshold_ )
-            bfs(prefix, root, simulator_budget_, time_budget_, screen_features_type_, max_rep_, alpha_, use_alpha_to_update_reward_for_death_, novelty_table_map);
-
-        // backup values and calculate heights
-        assert(!root->children_.empty());
-        root->backup_values(discount_);
-        root->calculate_height();
-        root_height_ = root->height_;
-
-        // print info about root node
-        if( true || debug_ ) {
-            logos_ << Utils::green()
-                   << "root:"
-                   << " value=" << root->value_
-                   << ", imm-reward=" << root->reward_
-                   << ", children=[";
-            for( size_t k = 0; k < root->children_.size(); ++k )
-                logos_ << root->children_[k]->value_ << ":" << root->children_[k]->action_ << " ";
-            logos_ << "]" << Utils::normal() << std::endl;
+        if( root->num_nodes() < nodes_threshold_ ) {
+            bfs(prefix,
+                root,
+                simulator_budget_,
+                time_budget_,
+                screen_features_type_,
+                max_rep_,
+                alpha_,
+                use_alpha_to_update_reward_for_death_,
+                novelty_table_map);
         }
 
-        // compute branch
-        if( root->value_ > 0 ) {
-            root->best_branch(branch, discount_);
-        } else if( root->value_ == 0 ) {
-            if( random_actions_ ) {
-                random_decision_ = true;
-                branch.push_back(random_action());
-            } else {
-                root->longest_zero_value_branch(branch, discount_);
-                //size_t n = branch.size() >> 1;
-                //n = n == 0 ? 1 : n;
-                //while( branch.size() > n )
-                //    branch.pop_back();
+        // if nothing was expanded, return random actions (it can only happen with small time budget)
+        if( root->children_.empty() ) {
+            random_decision_ = true;
+            branch.push_back(random_action());
+        } else {
+            // backup values and calculate heights
+            root->backup_values(discount_);
+            root->calculate_height();
+            root_height_ = root->height_;
+
+            // print info about root node
+            if( true || debug_ ) {
+                logos_ << Utils::green()
+                       << "root:"
+                       << " value=" << root->value_
+                       << ", imm-reward=" << root->reward_
+                       << ", children=[";
+                for( size_t k = 0; k < root->children_.size(); ++k )
+                    logos_ << root->children_[k]->value_ << ":" << root->children_[k]->action_ << " ";
+                logos_ << "]" << Utils::normal() << std::endl;
             }
-        } else if( root->value_ < 0 ) {
-            root->best_branch(branch, discount_);
-        }
-        assert(!branch.empty());
-        if( true || debug_ ) {
-            logos_ << "branch:"
-                   << " value=" << root->value_
-                   << ", size=" << branch.size()
-                   << ", actions:"
-                   << std::endl;
-            //root->print_branch(logos_, branch);
+
+            // compute branch
+            if( root->value_ > 0 ) {
+                root->best_branch(branch, discount_);
+            } else if( root->value_ == 0 ) {
+                if( random_actions_ ) {
+                    random_decision_ = true;
+                    branch.push_back(random_action());
+                } else {
+                    root->longest_zero_value_branch(branch, discount_);
+                    //size_t n = branch.size() >> 1;
+                    //n = n == 0 ? 1 : n;
+                    //while( branch.size() > n )
+                    //    branch.pop_back();
+                }
+            } else if( root->value_ < 0 ) {
+                root->best_branch(branch, discount_);
+            }
+
+            // print branch
+            assert(!branch.empty());
+            if( true || debug_ ) {
+                logos_ << "branch:"
+                       << " value=" << root->value_
+                       << ", size=" << branch.size()
+                       << ", actions:"
+                       << std::endl;
+                //root->print_branch(logos_, branch);
+            }
         }
 
         // stop timer and print stats

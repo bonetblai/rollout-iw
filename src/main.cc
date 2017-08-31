@@ -447,6 +447,7 @@ int main(int argc, char **argv) {
                << " time-budget=" << opt_time_budget
                << " features=" << opt_screen_features
                << " novelty-subtables=" << opt_novelty_subtables
+               //<< " caching=" << opt_lookahead_tree_caching
                << " random-actions=" << opt_random_actions
                << " frameskip=" << opt_frameskip
                << " simulator-calls=" << g_acc_simulator_calls

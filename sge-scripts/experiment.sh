@@ -17,7 +17,7 @@ ulimit -c 0
 options=${raw_options//,/ }
 
 $IW_ROOT/src/rom_planner \
-  --disable-caching \
+  --lookahead-caching 0 \
   --random-actions \
   --alpha 1 \
   --execute-single-action \
@@ -30,6 +30,7 @@ $IW_ROOT/src/rom_planner \
   --rom $IW_ROOT/atari-roms/$rom $options
 
 #$IW_ROOT/src/rom_planner \
+#  --lookahead-caching 2 \
 #  --random-actions \
 #  --alpha 1 \
 #  --execute-single-action \
@@ -42,7 +43,7 @@ $IW_ROOT/src/rom_planner \
 #  --rom $IW_ROOT/atari-roms/$rom $options
 
 #$IW_ROOT/src/rom_planner \
-#  --disable-caching \
+#  --lookahead-caching 0 \
 #  --alpha 1000 \
 #  --use-alpha-to-update-reward-for-death \
 #  --execute-single-action \
@@ -55,6 +56,7 @@ $IW_ROOT/src/rom_planner \
 #  --rom $IW_ROOT/atari-roms/$rom $options
 
 #$IW_ROOT/src/rom_planner \
+#  --lookahead-caching 2 \
 #  --alpha 1000 \
 #  --use-alpha-to-update-reward-for-death \
 #  --execute-single-action \

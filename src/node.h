@@ -69,6 +69,13 @@ class Node {
         assert(children_.size() == actions.size());
     }
 
+    void remove_cached_states() {
+        delete state_;
+        state_ = nullptr;
+        for( size_t k = 0; k < children_.size(); ++k )
+            children_[k]->remove_cached_states();
+    }
+
     Node* advance(Action action) {
         assert(!children_.empty());
         assert((parent_ == nullptr) || (parent_->parent_ == nullptr));

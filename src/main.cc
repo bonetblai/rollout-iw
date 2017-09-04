@@ -40,7 +40,7 @@ void run_episode(ALEInterface &env,
                  ostream &logos,
                  const Planner &planner,
                  int initial_noops,
-                 bool lookahead_tree_caching,
+                 int lookahead_caching,
                  float prefix_length_to_execute,
                  bool execute_single_action,
                  size_t frameskip,
@@ -129,12 +129,19 @@ void run_episode(ALEInterface &env,
         g_acc_num_frames += frameskip;
 
         // advance/destroy lookhead tree
-        if( lookahead_tree_caching ) {
-            if( node != nullptr )
+        if( node != nullptr ) {
+            if( (lookahead_caching == 0) || node->children_.empty() ) {
+                remove_tree(node);
+                node = nullptr;
+            } else {
                 node = node->advance(action);
-        } else {
-            remove_tree(node);
-            node = nullptr;
+                assert((node->parent_ != nullptr) && (node != nullptr));
+                if( lookahead_caching == 1 ) {
+                    node->remove_cached_states();
+                    assert(node->state_ == nullptr);
+                }
+                assert(node->parent_->state_ != nullptr);
+            }
         }
 
         // prune branch if got positive reward
@@ -212,7 +219,7 @@ int main(int argc, char **argv) {
 
     // options for online execution
     int opt_initial_random_noops;
-    bool opt_lookahead_tree_caching = true;
+    int opt_lookahead_caching;
     int opt_simulator_budget;
     float opt_time_budget;
     bool opt_execute_single_action = false;
@@ -268,7 +275,7 @@ int main(int argc, char **argv) {
 
       // options for online execution
       ("initial-random-noops", po::value<int>(&opt_initial_random_noops)->default_value(30), "set max number of initial noops, actual # is sampled (default is 30)")
-      ("disable-caching", "disable caching of states from previous to current decision (i.e., fully discard lookahead tree) (default is caching)")
+      ("lookahead-caching", po::value<int>(&opt_lookahead_caching)->default_value(2), "set lookahead caching: 0=none, 1=partial, 2=full (default is 2)")
       ("simulator-budget", po::value<int>(&opt_simulator_budget)->default_value(150000), "set budget for #calls to simulator for online decision making (default is 150k)")
       ("time-budget", po::value<float>(&opt_time_budget)->default_value(numeric_limits<float>::infinity()), "set time budget for online decision making (default is infinite)")
       ("execute-single-action", "execute only one action from best branch in lookahead (default is to execute prefix until first reward")
@@ -310,7 +317,6 @@ int main(int argc, char **argv) {
     opt_display = !opt_varmap.count("nodisplay");
     opt_sound = opt_varmap.count("sound");
     opt_use_minimal_action_set = opt_varmap.count("use-minimal-action-set");
-    opt_lookahead_tree_caching = !opt_varmap.count("disable-caching");
     opt_execute_single_action = opt_varmap.count("execute-single-action");
     opt_novelty_subtables = opt_varmap.count("novelty-subtables");
     opt_random_actions = opt_varmap.count("random-actions");
@@ -437,7 +443,7 @@ int main(int argc, char **argv) {
     for( size_t k = 0; k < opt_num_episodes; ++k ) {
         vector<Action> prefix;
         float start_time = Utils::read_time_in_seconds();
-        run_episode(env, *logos, *planner, initial_noops, opt_lookahead_tree_caching, opt_prefix_length_to_execute, opt_execute_single_action, opt_frameskip, opt_max_execution_length_in_frames, prefix);
+        run_episode(env, *logos, *planner, initial_noops, opt_lookahead_caching, opt_prefix_length_to_execute, opt_execute_single_action, opt_frameskip, opt_max_execution_length_in_frames, prefix);
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
         *logos << "episode-stats:"
                << " rom=" << opt_rom
@@ -447,7 +453,7 @@ int main(int argc, char **argv) {
                << " time-budget=" << opt_time_budget
                << " features=" << opt_screen_features
                << " novelty-subtables=" << opt_novelty_subtables
-               //<< " caching=" << opt_lookahead_tree_caching
+               //<< " caching=" << opt_lookahead_caching
                << " random-actions=" << opt_random_actions
                << " frameskip=" << opt_frameskip
                << " simulator-calls=" << g_acc_simulator_calls

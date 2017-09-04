@@ -85,6 +85,13 @@ void run_episode(ALEInterface &env,
         if( branch.empty() ) {
             ++g_acc_num_decisions;
 
+            if( (node != nullptr) && (lookahead_caching == 1) ) {
+                node->clear_cached_states();
+                assert(node->state_ == nullptr);
+                assert(node->parent_ != nullptr);
+                assert(node->parent_->state_ != nullptr);
+            }
+
             node = planner.get_branch(env, prefix, node, last_reward, branch);
             g_acc_simulator_calls += planner.simulator_calls();
             g_max_simulator_calls = std::max(g_max_simulator_calls, planner.simulator_calls());
@@ -134,13 +141,8 @@ void run_episode(ALEInterface &env,
                 remove_tree(node);
                 node = nullptr;
             } else {
-                node = node->advance(action);
-                assert((node->parent_ != nullptr) && (node != nullptr));
-                if( lookahead_caching == 1 ) {
-                    node->remove_cached_states();
-                    assert(node->state_ == nullptr);
-                }
                 assert(node->parent_->state_ != nullptr);
+                node = node->advance(action);
             }
         }
 
@@ -287,7 +289,7 @@ int main(int argc, char **argv) {
       ("random-actions", "use random action when there are no rewards in look-ahead tree (default is off)")
       ("max-rep", po::value<int>(&opt_max_rep)->default_value(30), "set max rep(etition) of screen features during lookahead (default is 30 frames)")
       ("discount", po::value<float>(&opt_discount)->default_value(1.0), "set discount factor for lookahead (default is 1.0)")
-      ("alpha", po::value<float>(&opt_alpha)->default_value(10000.0), "set alpha value for lookahead (default is 10,000)")
+      ("alpha", po::value<float>(&opt_alpha)->default_value(1.0), "set alpha value for lookahead (default is 1.0)")
       ("use-alpha-to-update-reward-for-death", "assign a big negative reward, depending on alpha's value, for deaths (default is off)")
       ("nodes-threshold", po::value<int>(&opt_nodes_threshold)->default_value(50000), "set threshold for expanding look-ahead tree (default is 50,000 nodes)")
 

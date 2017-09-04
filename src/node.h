@@ -23,7 +23,7 @@ class Node {
     size_t height_;                          // node's height (calculated)
     float reward_;                           // reward for this node
     float path_reward_;                      // reward of full path leading to this node
-    bool is_info_valid_;                     // is info valid?
+    int is_info_valid_;                      // is info valid? (0=no, 1=partial, 2=full)
     bool terminal_;                          // is node a terminal node?
     float value_;                            // backed up value
     int ale_lives_;                          // remaining ALE lives
@@ -42,7 +42,7 @@ class Node {
         height_(0),
         reward_(0),
         path_reward_(0),
-        is_info_valid_(false),
+        is_info_valid_(0),
         terminal_(false),
         value_(0),
         ale_lives_(-1),
@@ -69,11 +69,14 @@ class Node {
         assert(children_.size() == actions.size());
     }
 
-    void remove_cached_states() {
-        delete state_;
-        state_ = nullptr;
+    void clear_cached_states() {
+        if( is_info_valid_ == 2 ) {
+            delete state_;
+            state_ = nullptr;
+            is_info_valid_ = 1;
+        }
         for( size_t k = 0; k < children_.size(); ++k )
-            children_[k]->remove_cached_states();
+            children_[k]->clear_cached_states();
     }
 
     Node* advance(Action action) {
@@ -146,7 +149,7 @@ class Node {
     }
 
     float backup_values(float discount) {
-        assert(children_.empty() || is_info_valid_);
+        assert(children_.empty() || (is_info_valid_ != 0));
         value_ = reward_;
         if( !children_.empty() ) {
             float max_child_value = -std::numeric_limits<float>::infinity();

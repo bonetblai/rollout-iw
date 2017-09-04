@@ -314,8 +314,8 @@ struct BfsIW : Planner {
 
             // update node info
             assert(node->children_.empty());
-            assert(node->visited_ || !node->is_info_valid_);
-            if( !node->is_info_valid_ ) {
+            assert(node->visited_ || (node->is_info_valid_ != 2));
+            if( node->is_info_valid_ != 2 ) {
                 update_info(node, screen_features_level, alpha, use_alpha_to_update_reward_for_death);
                 assert(node->children_.empty());
                 node->visited_ = true;
@@ -390,30 +390,39 @@ struct BfsIW : Planner {
     }
 
     void update_info(Node *node, int screen_features_level, float alpha, bool use_alpha_to_update_reward_for_death) const {
-        assert(!node->is_info_valid_);
+        assert(node->is_info_valid_ != 2);
         assert(node->state_ == nullptr);
-        assert((node->parent_ != nullptr) && (node->parent_->state_ != nullptr));
+        assert(node->parent_ != nullptr);
+        assert((node->parent_->is_info_valid_ == 1) || (node->parent_->state_ != nullptr));
+        if( node->parent_->state_ == nullptr ) {
+            // do recursion on parent
+            update_info(node->parent_, screen_features_level, alpha, use_alpha_to_update_reward_for_death);
+        }
+        assert(node->parent_->state_ != nullptr);
         set_state(sim_, *node->parent_->state_);
-        node->reward_ = call_simulator(sim_, node->action_);
-        node->terminal_ = terminal_state(sim_);
+        float reward = call_simulator(sim_, node->action_);
         node->state_ = new ALEState;
         get_state(sim_, *node->state_);
-        if( node->reward_ < 0 ) node->reward_ *= alpha;
-        get_atoms(node, screen_features_level);
-        node->ale_lives_ = get_lives(sim_);
-        if( use_alpha_to_update_reward_for_death && (node->parent_ != nullptr) && (node->parent_->ale_lives_ != -1) ) {
-            if( node->ale_lives_ < node->parent_->ale_lives_ ) {
-                node->reward_ = -10 * alpha;
-                //logos_ << "L" << std::flush;
+        if( node->is_info_valid_ == 0 ) {
+            node->reward_ = reward;
+            node->terminal_ = terminal_state(sim_);
+            if( node->reward_ < 0 ) node->reward_ *= alpha;
+            get_atoms(node, screen_features_level);
+            node->ale_lives_ = get_lives(sim_);
+            if( use_alpha_to_update_reward_for_death && (node->parent_ != nullptr) && (node->parent_->ale_lives_ != -1) ) {
+                if( node->ale_lives_ < node->parent_->ale_lives_ ) {
+                    node->reward_ = -10 * alpha;
+                    //logos_ << "L" << std::flush;
+                }
             }
-        }
-        node->path_reward_ = node->parent_ == nullptr ? 0 : node->parent_->path_reward_;
-        node->path_reward_ += node->reward_;
-        node->is_info_valid_ = true;
+            node->path_reward_ = node->parent_ == nullptr ? 0 : node->parent_->path_reward_;
+            node->path_reward_ += node->reward_;
 
-        // update best global reward
-        if( best_path_reward_ < node->path_reward_ )
-            best_path_reward_ = node->path_reward_;
+            // update best global reward
+            if( best_path_reward_ < node->path_reward_ )
+                best_path_reward_ = node->path_reward_;
+        }
+        node->is_info_valid_ = 2;
     }
 
     void get_atoms(const Node *node, int screen_features_level) const {

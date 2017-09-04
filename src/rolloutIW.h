@@ -223,6 +223,8 @@ struct RolloutIW : Planner {
                 rewards_seen.insert(rewards_seen_in_rollout);
                 elapsed_time = Utils::read_time_in_seconds() - start_time;
             }
+            if( debug_ ) logos_ << std::endl;
+
 #if 0
             int first_level = feature_stratification_ && (screen_features_type_ > 0) ? 1 : screen_features_type_;
             for( int level = first_level; level <= screen_features_type_; ++level ) {
@@ -341,13 +343,13 @@ struct RolloutIW : Planner {
         //apply_prefix(sim_, initial_sim_state_, prefix);
 
         // update root info
-        if( !root->is_info_valid_ )
+        if( root->is_info_valid_ != 2 )
             update_info(root, screen_features_level, alpha, use_alpha_to_update_reward_for_death);
 
         // perform rollout
         Node *node = root;
         while( !node->solved_ ) {
-            assert(node->is_info_valid_);
+            assert(node->is_info_valid_ == 2);
 
             // if first time at this node, expand node
             if( node->children_.empty() ) {
@@ -383,7 +385,7 @@ struct RolloutIW : Planner {
             }
 
             // update info
-            if( !node->is_info_valid_ )
+            if( node->is_info_valid_ != 2 )
                 update_info(node, screen_features_level, alpha, use_alpha_to_update_reward_for_death);
 
             // if terminal, label as solved and terminate rollout
@@ -464,30 +466,34 @@ struct RolloutIW : Planner {
     }
 
     void update_info(Node *node, int screen_features_level, float alpha, bool use_alpha_to_update_reward_for_death) const {
-        assert(!node->is_info_valid_);
+        assert(node->is_info_valid_ != 2);
         assert(node->state_ == nullptr);
-        assert((node->parent_ != nullptr) && (node->parent_->state_ != nullptr));
+        assert(node->parent_ != nullptr);
+        assert(node->parent_->state_ != nullptr);
         set_state(sim_, *node->parent_->state_);
-        node->reward_ = call_simulator(sim_, node->action_);
-        node->terminal_ = terminal_state(sim_);
+        float reward = call_simulator(sim_, node->action_);
         node->state_ = new ALEState;
         get_state(sim_, *node->state_);
-        if( node->reward_ < 0 ) node->reward_ *= alpha;
-        get_atoms(node, screen_features_level);
-        node->ale_lives_ = get_lives(sim_);
-        if( use_alpha_to_update_reward_for_death && (node->parent_ != nullptr) && (node->parent_->ale_lives_ != -1) ) {
-            if( node->ale_lives_ < node->parent_->ale_lives_ ) {
-                node->reward_ = -10 * alpha;
-                //logos_ << "L" << std::flush;
+        if( node->is_info_valid_ == 0 ) {
+            node->reward_ = reward;
+            node->terminal_ = terminal_state(sim_);
+            if( node->reward_ < 0 ) node->reward_ *= alpha;
+            get_atoms(node, screen_features_level);
+            node->ale_lives_ = get_lives(sim_);
+            if( use_alpha_to_update_reward_for_death && (node->parent_ != nullptr) && (node->parent_->ale_lives_ != -1) ) {
+                if( node->ale_lives_ < node->parent_->ale_lives_ ) {
+                    node->reward_ = -10 * alpha;
+                    //logos_ << "L" << std::flush;
+                }
             }
-        }
-        node->path_reward_ = node->parent_ == nullptr ? 0 : node->parent_->path_reward_;
-        node->path_reward_ += node->reward_;
-        node->is_info_valid_ = true;
+            node->path_reward_ = node->parent_ == nullptr ? 0 : node->parent_->path_reward_;
+            node->path_reward_ += node->reward_;
 
-        // update best global reward
-        if( best_path_reward_ < node->path_reward_ )
-            best_path_reward_ = node->path_reward_;
+            // update best global reward
+            if( best_path_reward_ < node->path_reward_ )
+                best_path_reward_ = node->path_reward_;
+        }
+        node->is_info_valid_ = 2;
     }
 
 #if 0

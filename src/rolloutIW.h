@@ -285,20 +285,21 @@ struct RolloutIW : Planner {
             // compute branch
             if( root->value_ > 0 ) {
                 root->best_branch(branch, discount_);
-            } else if( root->value_ == 0 ) {
-                if( random_actions_ ) {
+            } else if( random_actions_ && (root->value_ == 0) ) {
+                random_decision_ = true;
+                branch.push_back(random_action());
+            } else if( (root->value_ == 0) && (root->reward_ == 0) ) {
+                root->longest_zero_branch(branch);
+                if( branch.empty() ) {
                     random_decision_ = true;
                     branch.push_back(random_action());
-                } else {
-                    root->longest_zero_value_branch(branch, discount_);
-                    //size_t n = branch.size() >> 1;
-                    //n = n == 0 ? 1 : n;
-                    //while( branch.size() > n )
-                    //    branch.pop_back();
                 }
-            } else if( root->value_ < 0 ) {
+            } else {
                 root->best_branch(branch, discount_);
             }
+
+            // make sure states along branch exist (only needed when doing partial caching)
+            generate_states_along_branch(root, branch, screen_features_type_, alpha_, use_alpha_to_update_reward_for_death_);
 
             // print branch
             assert(!branch.empty());
@@ -462,6 +463,29 @@ struct RolloutIW : Planner {
                 //logos_ << "c" << std::flush;
                 continue;
             }
+        }
+    }
+
+    void generate_states_along_branch(Node *node,
+                                      const std::deque<Action> &branch,
+                                      int screen_features_level,
+                                      float alpha,
+                                      bool use_alpha_to_update_reward_for_death) const {
+        for( size_t pos = 0; pos < branch.size(); ++pos ) {
+            if( node->state_ == nullptr ) {
+                assert(node->is_info_valid_ == 1);
+                update_info(node, screen_features_level, alpha, use_alpha_to_update_reward_for_death);
+            }
+
+            Node *child = nullptr;
+            for( size_t k = 0; k < node->children_.size(); ++k ) {
+                if( node->children_[k]->action_ == branch[pos] ) {
+                    child = node->children_[k];
+                    break;
+                }
+            }
+            assert(child != nullptr);
+            node = child;
         }
     }
 

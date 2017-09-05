@@ -232,14 +232,14 @@ class Node {
         }
     }
 
-    void longest_zero_value_branch(std::deque<Action> &branch, float discount) const {
-        assert(value_ == 0);
+    void longest_zero_branch(std::deque<Action> &branch) const {
+        assert((reward_ == 0) && (value_ == 0));
         if( !children_.empty() ) {
             size_t max_height = 0;
             size_t num_best_children = 0;
             for( size_t k = 0; k < children_.size(); ++k ) {
                 const Node &child = *children_[k];
-                if( (qvalue(child, discount) == 0) && (child.height_ >= max_height) ) {
+                if( (child.reward_ == 0) && (child.value_ == 0) && (child.height_ >= max_height) ) {
                     if( child.height_ > max_height ) {
                         max_height = child.height_;
                         num_best_children = 0;
@@ -247,17 +247,18 @@ class Node {
                     ++num_best_children;
                 }
             }
-            assert(num_best_children > 0);
-            size_t index_best_child = lrand48() % num_best_children;
-            for( size_t k = 0; k < children_.size(); ++k ) {
-                const Node &child = *children_[k];
-                if( (qvalue(child, discount) == 0) && (child.height_ >= max_height) ) {
-                    if( index_best_child == 0 ) {
-                        branch.push_back(child.action_);
-                        child.longest_zero_value_branch(branch, discount);
-                        break;
+            if( num_best_children > 0 ) {
+                size_t index_best_child = lrand48() % num_best_children;
+                for( size_t k = 0; k < children_.size(); ++k ) {
+                    const Node &child = *children_[k];
+                    if( (child.reward_ == 0) && (child.value_ == 0) && (child.height_ == max_height) ) {
+                        if( index_best_child == 0 ) {
+                            branch.push_back(child.action_);
+                            child.longest_zero_branch(branch);
+                            break;
+                        }
+                        --index_best_child;
                     }
-                    --index_best_child;
                 }
             }
         }

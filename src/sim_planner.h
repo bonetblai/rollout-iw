@@ -4,6 +4,9 @@
 #define SIM_PLANNER_H
 
 #include <deque>
+#include <iostream>
+#include <limits>
+#include <map>
 #include <string>
 #include <vector>
 

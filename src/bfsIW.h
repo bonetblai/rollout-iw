@@ -20,11 +20,10 @@
 struct BfsIW : Planner {
     ALEInterface &sim_;
 
-    std::ostream &logos_;
     const size_t frameskip_;
     const bool use_minimal_action_set_;
     const size_t num_tracked_atoms_;
-    const int screen_features_type_;
+    const int screen_features_;
     const int simulator_budget_;
     const float time_budget_;
     const bool novelty_subtables_;
@@ -45,9 +44,9 @@ struct BfsIW : Planner {
     mutable size_t simulator_calls_;
     mutable size_t num_expansions_;
     mutable float total_time_;
-    mutable float simulator_time_;
-    mutable float reset_time_;
-    mutable float get_set_state_time_;
+    mutable float sim_time_;
+    mutable float sim_reset_time_;
+    mutable float sim_get_set_state_time_;
     mutable float update_novelty_time_;
     mutable size_t get_atoms_calls_;
     mutable float get_atoms_time_;
@@ -56,12 +55,12 @@ struct BfsIW : Planner {
     mutable size_t root_height_;
     mutable bool random_decision_;
 
-    BfsIW(ALEInterface &sim,
-          std::ostream &logos,
+    BfsIW(std::ostream &logos,
+          ALEInterface &sim,
           size_t frameskip,
           bool use_minimal_action_set,
           size_t num_tracked_atoms,
-          int screen_features_type,
+          int screen_features,
           float simulator_budget,
           float time_budget,
           bool novelty_subtables,
@@ -73,12 +72,12 @@ struct BfsIW : Planner {
           int nodes_threshold,
           bool break_ties_using_rewards,
           bool debug = false)
-      : sim_(sim),
-        logos_(logos),
+      : Planner(logos),
+        sim_(sim),
         frameskip_(frameskip),
         use_minimal_action_set_(use_minimal_action_set),
         num_tracked_atoms_(num_tracked_atoms),
-        screen_features_type_(screen_features_type),
+        screen_features_(screen_features),
         simulator_budget_(simulator_budget),
         time_budget_(time_budget),
         novelty_subtables_(novelty_subtables),
@@ -103,7 +102,7 @@ struct BfsIW : Planner {
         return std::string("bfs(")
           + "frameskip=" + std::to_string(frameskip_)
           + ",minimal-action-set=" + std::to_string(use_minimal_action_set_)
-          + ",features=" + std::to_string(screen_features_type_)
+          + ",features=" + std::to_string(screen_features_)
           + ",simulator-budget=" + std::to_string(simulator_budget_)
           + ",time-budget=" + std::to_string(time_budget_)
           + ",novelty-subtables=" + std::to_string(novelty_subtables_)
@@ -206,7 +205,7 @@ struct BfsIW : Planner {
                 root,
                 simulator_budget_,
                 time_budget_,
-                screen_features_type_,
+                screen_features_,
                 max_rep_,
                 alpha_,
                 use_alpha_to_update_reward_for_death_,
@@ -252,7 +251,7 @@ struct BfsIW : Planner {
             }
 
             // make sure states along branch exist (only needed when doing partial caching)
-            generate_states_along_branch(root, branch, screen_features_type_, alpha_, use_alpha_to_update_reward_for_death_);
+            generate_states_along_branch(root, branch, screen_features_, alpha_, use_alpha_to_update_reward_for_death_);
 
             // print branch
             assert(!branch.empty());
@@ -291,7 +290,7 @@ struct BfsIW : Planner {
              Node *root,
              int simulator_budget,
              float time_budget,
-             int screen_features_level,
+             int screen_features,
              size_t max_rep,
              float alpha,
              bool use_alpha_to_update_reward_for_death,
@@ -317,7 +316,7 @@ struct BfsIW : Planner {
             assert(node->children_.empty());
             assert(node->visited_ || (node->is_info_valid_ != 2));
             if( node->is_info_valid_ != 2 ) {
-                update_info(node, screen_features_level, alpha, use_alpha_to_update_reward_for_death);
+                update_info(node, screen_features, alpha, use_alpha_to_update_reward_for_death);
                 assert(node->children_.empty());
                 node->visited_ = true;
             }
@@ -337,7 +336,7 @@ struct BfsIW : Planner {
             // calculate novelty and prune
             if( node->frame_rep_ == 0 ) {
                 // calculate novelty
-                std::vector<int> &novelty_table = get_novelty_table(node, novelty_table_map);
+                std::vector<int> &novelty_table = get_novelty_table(node, novelty_table_map, novelty_subtables_);
                 int atom = get_novel_atom(node->depth_, node->feature_atoms_, novelty_table);
                 assert((atom >= 0) && (atom < novelty_table.size()));
 
@@ -362,7 +361,7 @@ struct BfsIW : Planner {
                     node->expand(legal_action_set_, false);
                 expand_time_ += Utils::read_time_in_seconds() - start_time;
             } else {
-                assert((node->parent_ != nullptr) && (screen_features_level > 0));
+                assert((node->parent_ != nullptr) && (screen_features > 0));
                 node->expand(node->action_);
             }
             assert(!node->children_.empty());
@@ -392,13 +391,13 @@ struct BfsIW : Planner {
 
     void generate_states_along_branch(Node *node,
                                       const std::deque<Action> &branch,
-                                      int screen_features_level,
+                                      int screen_features,
                                       float alpha,
                                       bool use_alpha_to_update_reward_for_death) const {
         for( size_t pos = 0; pos < branch.size(); ++pos ) {
             if( node->state_ == nullptr ) {
                 assert(node->is_info_valid_ == 1);
-                update_info(node, screen_features_level, alpha, use_alpha_to_update_reward_for_death);
+                update_info(node, screen_features, alpha, use_alpha_to_update_reward_for_death);
             }
 
             Node *child = nullptr;
@@ -413,14 +412,14 @@ struct BfsIW : Planner {
         }
     }
 
-    void update_info(Node *node, int screen_features_level, float alpha, bool use_alpha_to_update_reward_for_death) const {
+    void update_info(Node *node, int screen_features, float alpha, bool use_alpha_to_update_reward_for_death) const {
         assert(node->is_info_valid_ != 2);
         assert(node->state_ == nullptr);
         assert(node->parent_ != nullptr);
         assert((node->parent_->is_info_valid_ == 1) || (node->parent_->state_ != nullptr));
         if( node->parent_->state_ == nullptr ) {
             // do recursion on parent
-            update_info(node->parent_, screen_features_level, alpha, use_alpha_to_update_reward_for_death);
+            update_info(node->parent_, screen_features, alpha, use_alpha_to_update_reward_for_death);
         }
         assert(node->parent_->state_ != nullptr);
         set_state(sim_, *node->parent_->state_);
@@ -431,7 +430,7 @@ struct BfsIW : Planner {
             node->reward_ = reward;
             node->terminal_ = terminal_state(sim_);
             if( node->reward_ < 0 ) node->reward_ *= alpha;
-            get_atoms(node, screen_features_level);
+            get_atoms(node, screen_features);
             node->ale_lives_ = get_lives(sim_);
             if( use_alpha_to_update_reward_for_death && (node->parent_ != nullptr) && (node->parent_->ale_lives_ != -1) ) {
                 if( node->ale_lives_ < node->parent_->ale_lives_ ) {
@@ -449,19 +448,19 @@ struct BfsIW : Planner {
         node->is_info_valid_ = 2;
     }
 
-    void get_atoms(const Node *node, int screen_features_level) const {
+    void get_atoms(const Node *node, int screen_features) const {
         assert(node->feature_atoms_.empty());
         ++get_atoms_calls_;
-        if( screen_features_level == 0 ) { // RAM mode
+        if( screen_features == 0 ) { // RAM mode
             get_atoms_from_ram(node);
         } else {
-            get_atoms_from_screen(node, screen_features_level);
+            get_atoms_from_screen(node, screen_features);
             if( (node->parent_ != nullptr) && (node->parent_->feature_atoms_ == node->feature_atoms_) ) {
                 node->frame_rep_ = node->parent_->frame_rep_ + frameskip_;
                 assert(node->children_.empty());
             }
         }
-        assert((node->frame_rep_ == 0) || (screen_features_level > 0));
+        assert((node->frame_rep_ == 0) || (screen_features > 0));
     }
     void get_atoms_from_ram(const Node *node) const {
         assert(node->feature_atoms_.empty());
@@ -474,20 +473,20 @@ struct BfsIW : Planner {
         }
         get_atoms_time_ += Utils::read_time_in_seconds() - start_time;
     }
-    void get_atoms_from_screen(const Node *node, int screen_features_level) const {
+    void get_atoms_from_screen(const Node *node, int screen_features) const {
         assert(node->feature_atoms_.empty());
         float start_time = Utils::read_time_in_seconds();
-        if( (screen_features_level < 3) || (node->parent_ == nullptr) ) {
-            MyALEScreen screen(sim_, logos_, screen_features_level, &node->feature_atoms_);
+        if( (screen_features < 3) || (node->parent_ == nullptr) ) {
+            MyALEScreen screen(sim_, logos_, screen_features, &node->feature_atoms_);
         } else {
-            assert((screen_features_level == 3) && (node->parent_ != nullptr));
-            MyALEScreen screen(sim_, logos_, screen_features_level, &node->feature_atoms_, &node->parent_->feature_atoms_);
+            assert((screen_features == 3) && (node->parent_ != nullptr));
+            MyALEScreen screen(sim_, logos_, screen_features, &node->feature_atoms_, &node->parent_->feature_atoms_);
         }
         get_atoms_time_ += Utils::read_time_in_seconds() - start_time;
     }
 
-    int get_index_for_novelty_table(const Node *node) const {
-        if( !novelty_subtables_ ) {
+    int get_index_for_novelty_table(const Node *node, bool use_novelty_subtables) const {
+        if( !use_novelty_subtables ) {
             return 0;
         } else {
             if( node->path_reward_ <= 0 ) {
@@ -500,8 +499,8 @@ struct BfsIW : Planner {
         }
     }
 
-    std::vector<int>& get_novelty_table(const Node *node, std::map<int, std::vector<int> > &novelty_table_map) const {
-        int index = get_index_for_novelty_table(node);
+    std::vector<int>& get_novelty_table(const Node *node, std::map<int, std::vector<int> > &novelty_table_map, bool use_novelty_subtables) const {
+        int index = get_index_for_novelty_table(node, use_novelty_subtables);
         std::map<int, std::vector<int> >::iterator it = novelty_table_map.find(index);
         if( it == novelty_table_map.end() ) {
             novelty_table_map.insert(std::make_pair(index, std::vector<int>()));
@@ -557,7 +556,7 @@ struct BfsIW : Planner {
         float start_time = Utils::read_time_in_seconds();
         float reward = ale.act(action);
         assert(reward != -std::numeric_limits<float>::infinity());
-        simulator_time_ += Utils::read_time_in_seconds() - start_time;
+        sim_time_ += Utils::read_time_in_seconds() - start_time;
         return reward;
     }
 
@@ -583,19 +582,19 @@ struct BfsIW : Planner {
     void get_state(ALEInterface &ale, ALEState &ale_state) const {
         float start_time = Utils::read_time_in_seconds();
         ale_state = ale.cloneState();
-        get_set_state_time_ += Utils::read_time_in_seconds() - start_time;
+        sim_get_set_state_time_ += Utils::read_time_in_seconds() - start_time;
     }
 
     void set_state(ALEInterface &ale, const ALEState &ale_state) const {
         float start_time = Utils::read_time_in_seconds();
         ale.restoreState(ale_state);
-        get_set_state_time_ += Utils::read_time_in_seconds() - start_time;
+        sim_get_set_state_time_ += Utils::read_time_in_seconds() - start_time;
     }
 
     void reset_game(ALEInterface &ale) const {
         float start_time = Utils::read_time_in_seconds();
         ale.reset_game();
-        reset_time_ += Utils::read_time_in_seconds() - start_time;
+        sim_reset_time_ += Utils::read_time_in_seconds() - start_time;
     }
 
     const ALERAM& get_ram(ALEInterface &ale) const {
@@ -616,9 +615,9 @@ struct BfsIW : Planner {
         simulator_calls_ = 0;
         num_expansions_ = 0;
         total_time_ = 0;
-        simulator_time_ = 0;
-        reset_time_ = 0;
-        get_set_state_time_ = 0;
+        sim_time_ = 0;
+        sim_reset_time_ = 0;
+        sim_get_set_state_time_ = 0;
         update_novelty_time_ = 0;
         get_atoms_calls_ = 0;
         get_atoms_time_ = 0;
@@ -648,9 +647,9 @@ struct BfsIW : Planner {
         os << " #expansions=" << num_expansions_
            << " #sim=" << simulator_calls_
            << " total-time=" << total_time_
-           << " simulator-time=" << simulator_time_
-           << " reset-time=" << reset_time_
-           << " get/set-state-time=" << get_set_state_time_
+           << " simulator-time=" << sim_time_
+           << " reset-time=" << sim_reset_time_
+           << " get/set-state-time=" << sim_get_set_state_time_
            << " expand-time=" << expand_time_
            << " update-novelty-time=" << update_novelty_time_
            << " get-atoms-calls=" << get_atoms_calls_

@@ -3,15 +3,16 @@
 #ifndef PLANNER_H
 #define PLANNER_H
 
+#include <iostream>
 #include <deque>
 #include <string>
 #include <vector>
 #include <ale_interface.hpp>
 #include "node.h"
 
-typedef int OBS;
-
 struct Planner {
+    std::ostream &logos_;
+    Planner(std::ostream &logos) : logos_(logos) { }
     virtual ~Planner() { }
     virtual std::string name() const = 0;
     virtual size_t simulator_calls() const = 0;
@@ -27,12 +28,18 @@ struct Planner {
 };
 
 struct RandomPlanner : Planner {
-    ActionVect minimal_actions_;
-    size_t minimal_actions_size_;
+    const bool use_minimal_action_set_;
+    ActionVect action_set_;
+    size_t action_set_size_;
 
-    RandomPlanner(ALEInterface &env) {
-        minimal_actions_ = env.getMinimalActionSet();
-        minimal_actions_size_ = minimal_actions_.size();
+    RandomPlanner(std::ostream &logos, ALEInterface &env, bool use_minimal_action_set)
+      : Planner(logos),
+        use_minimal_action_set_(use_minimal_action_set) {
+        if( use_minimal_action_set_ )
+            action_set_ = env.getMinimalActionSet();
+        else
+            action_set_ = env.getLegalActionSet();
+        action_set_size_ = action_set_.size();
     }
     virtual ~RandomPlanner() { }
 
@@ -53,7 +60,7 @@ struct RandomPlanner : Planner {
     }
 
     virtual Action random_action() const {
-        return minimal_actions_[lrand48() % minimal_actions_size_];
+        return action_set_[lrand48() % action_set_size_];
     }
 
     virtual Node* get_branch(ALEInterface &env,
@@ -70,7 +77,8 @@ struct RandomPlanner : Planner {
 struct FixedPlanner : public Planner {
     mutable std::deque<Action> actions_;
 
-    FixedPlanner(const std::vector<Action> &actions) {
+    FixedPlanner(std::ostream &logos, const std::vector<Action> &actions)
+      : Planner(logos) {
         actions_ = std::deque<Action>(actions.begin(), actions.end());
     }
     virtual ~FixedPlanner() { }

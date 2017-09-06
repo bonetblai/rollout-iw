@@ -381,7 +381,7 @@ int main(int argc, char **argv) {
     if( opt_fixed_action_sequence != "" ) {
         vector<Action> actions;
         parse_action_sequence(opt_fixed_action_sequence, actions);
-        planner = new FixedPlanner(actions);
+        planner = new FixedPlanner(*logos, actions);
     } else {
         size_t num_tracked_atoms = 0;
         if( opt_screen_features == 0 ) { // RAM mode
@@ -393,8 +393,8 @@ int main(int argc, char **argv) {
         }
 
         if( opt_planner_str == "rollout" ) {
-            planner = new RolloutIW(sim,
-                                    *logos,
+            planner = new RolloutIW(*logos,
+                                    sim,
                                     opt_frameskip,
                                     opt_use_minimal_action_set,
                                     num_tracked_atoms,
@@ -412,8 +412,8 @@ int main(int argc, char **argv) {
                                     opt_max_depth,
                                     opt_debug);
         } else if( opt_planner_str == "bfs" ) {
-            planner = new BfsIW(sim,
-                                *logos,
+            planner = new BfsIW(*logos,
+                                sim,
                                 opt_frameskip,
                                 opt_use_minimal_action_set,
                                 num_tracked_atoms,

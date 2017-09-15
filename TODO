@@ -1,2 +1,0 @@
-Consolidate common code in bfs/rollout in abstract class, template is in sim_planner.h
-

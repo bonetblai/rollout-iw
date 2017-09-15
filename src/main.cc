@@ -26,15 +26,28 @@ ActionVect MyALEScreen::minimal_actions_;
 size_t MyALEScreen::minimal_actions_size_;
 
 // global variables
+float g_acc_simulator_time = 0;
 float g_acc_reward = 0;
 size_t g_acc_simulator_calls = 0;
 size_t g_max_simulator_calls = 0;
-size_t g_acc_num_decisions = 0;
-size_t g_acc_num_frames = 0;
-size_t g_acc_num_random_decisions = 0;
+size_t g_acc_decisions = 0;
+size_t g_acc_frames = 0;
+size_t g_acc_random_decisions = 0;
 size_t g_acc_height = 0;
 size_t g_acc_expanded = 0;
 
+
+void reset_global_variables() {
+    g_acc_simulator_time = 0;
+    g_acc_reward = 0;
+    g_acc_simulator_calls = 0;
+    g_max_simulator_calls = 0;
+    g_acc_decisions = 0;
+    g_acc_frames = 0;
+    g_acc_random_decisions = 0;
+    g_acc_height = 0;
+    g_acc_expanded = 0;
+}
 
 void run_episode(ALEInterface &env,
                  ostream &logos,
@@ -47,15 +60,7 @@ void run_episode(ALEInterface &env,
                  size_t max_execution_length_in_frames,
                  vector<Action> &prefix) {
     assert(prefix.empty());
-
-    g_acc_reward = 0;
-    g_acc_simulator_calls = 0;
-    g_max_simulator_calls = 0;
-    g_acc_num_decisions = 0;
-    g_acc_num_frames = 0;
-    g_acc_num_random_decisions = 0;
-    g_acc_height = 0;
-    g_acc_expanded = 0;
+    reset_global_variables();
 
     // fill initial prefix
     if( initial_noops == 0 ) {
@@ -83,7 +88,7 @@ void run_episode(ALEInterface &env,
     for( size_t frame = 0; !env.game_over() && (frame < max_execution_length_in_frames); frame += frameskip ) {
         // if empty branch, get branch
         if( branch.empty() ) {
-            ++g_acc_num_decisions;
+            ++g_acc_decisions;
 
             if( (node != nullptr) && (lookahead_caching == 1) ) {
                 node->clear_cached_states();
@@ -95,7 +100,7 @@ void run_episode(ALEInterface &env,
             node = planner.get_branch(env, prefix, node, last_reward, branch);
             g_acc_simulator_calls += planner.simulator_calls();
             g_max_simulator_calls = std::max(g_max_simulator_calls, planner.simulator_calls());
-            g_acc_num_random_decisions += planner.random_decision() ? 1 : 0;
+            g_acc_random_decisions += planner.random_decision() ? 1 : 0;
             g_acc_height += planner.height();
             g_acc_expanded += planner.expanded();
 
@@ -133,7 +138,7 @@ void run_episode(ALEInterface &env,
         last_reward = env.act(action);
         prefix.push_back(action);
         g_acc_reward += last_reward;
-        g_acc_num_frames += frameskip;
+        g_acc_frames += frameskip;
 
         // advance/destroy lookhead tree
         if( node != nullptr ) {
@@ -194,50 +199,50 @@ void usage(ostream &os, const po::options_description &opt_desc) {
 }
 
 int main(int argc, char **argv) {
+    // rom and log files
+    string opt_log_file;
+    string opt_rom;
+
+    // planner
+    string opt_planner_str;
+
     // general options
-    int opt_random_seed;
     bool opt_debug = false;
-    int opt_frameskip;
     bool opt_display = true;
-    bool opt_sound = false;
+    int opt_frameskip;
+    int opt_random_seed;
     string opt_rec_dir;
     string opt_rec_sound_filename;
+    bool opt_sound = false;
     bool opt_use_minimal_action_set = false;
 
-    // number of episodes and execution length
-    int opt_num_episodes;
+    // episodes and execution length
+    int opt_episodes;
     int opt_max_execution_length_in_frames;
 
     // simulate previous execution
     string opt_fixed_action_sequence;
 
-    // rom and log files
-    string opt_log_file;
-    string opt_rom;
-
     // features
     int opt_screen_features;
-    int opt_num_frames_for_background_image;
+    int opt_frames_for_background_image;
 
-    // options for online execution
+    // online execution
     int opt_initial_random_noops;
+    bool opt_execute_single_action = false;
     int opt_lookahead_caching;
+    float opt_prefix_length_to_execute;
     int opt_simulator_budget;
     float opt_time_budget;
-    bool opt_execute_single_action = false;
-    float opt_prefix_length_to_execute;
 
-    // planner
-    string opt_planner_str;
-
-    // options for both planners
+    // common options for planners
+    float opt_alpha;
+    float opt_discount;
+    int opt_max_rep;
+    int opt_nodes_threshold;
     bool opt_novelty_subtables = false;
     bool opt_random_actions = false;
-    int opt_max_rep;
-    float opt_discount;
-    float opt_alpha;
     bool opt_use_alpha_to_update_reward_for_death = false;
-    int opt_nodes_threshold;
 
     // options for rollout planner
     //bool feature_stratification = false;
@@ -249,6 +254,10 @@ int main(int argc, char **argv) {
     // declare supported options
     po::options_description opt_desc("Allowed options");
     opt_desc.add_options()
+      // rom and log files
+      ("log-file", po::value<string>(&opt_log_file), "set path to log file (default is \"\" for no logging)")
+      ("rom", po::value<string>(&opt_rom), "set Atari ROM")
+
       // general options
       ("help", "help message")
       ("seed", po::value<int>(&opt_random_seed)->default_value(0), "set random seed")
@@ -261,19 +270,15 @@ int main(int argc, char **argv) {
       ("minimal-action-set", "turn on minimal action set instead of larger legal action set")
 
       // number of episodes and execution length
-      ("num-episodes", po::value<int>(&opt_num_episodes)->default_value(1), "set number of episodes (default is 1)")
+      ("num-episodes", po::value<int>(&opt_episodes)->default_value(1), "set number of episodes (default is 1)")
       ("max-execution-length", po::value<int>(&opt_max_execution_length_in_frames)->default_value(18000), "set max number of frames in single execution (default is 18k frames)")
 
       // simulate previous execution
       ("fixed-action-sequence", po::value<string>(&opt_fixed_action_sequence), "pass fixed action sequence that provides actions (default is \"\" for no such sequence")
 
-      // rom and log files
-      ("log-file", po::value<string>(&opt_log_file), "set path to log file (default is \"\" for no logging)")
-      ("rom", po::value<string>(&opt_rom), "set Atari ROM")
-
       // features
       ("features", po::value<int>(&opt_screen_features)->default_value(0), "set feature set: 0=RAM, 1=basic, 2=basic+B-PROS, 3=basic+B-PROS+B-PROT (default is 0)")
-      ("frames-background-image", po::value<int>(&opt_num_frames_for_background_image)->default_value(100), "set number of random frames to compute background image (default is 100 frames)")
+      ("frames-background-image", po::value<int>(&opt_frames_for_background_image)->default_value(100), "set number of random frames to compute background image (default is 100 frames)")
 
       // options for online execution
       ("initial-random-noops", po::value<int>(&opt_initial_random_noops)->default_value(30), "set max number of initial noops, actual # is sampled (default is 30)")
@@ -373,7 +378,7 @@ int main(int argc, char **argv) {
     // initialize static members for screen features
     if( opt_screen_features > 0 ) {
         MyALEScreen::create_background_image();
-        MyALEScreen::compute_background_image(sim, *logos, opt_num_frames_for_background_image, true);
+        MyALEScreen::compute_background_image(sim, *logos, opt_frames_for_background_image, true);
     }
 
     // construct planner
@@ -442,34 +447,59 @@ int main(int argc, char **argv) {
     int initial_noops = lrand48() % opt_initial_random_noops;
 
     // play
-    for( size_t k = 0; k < opt_num_episodes; ++k ) {
+    for( size_t k = 0; k < opt_episodes; ++k ) {
         vector<Action> prefix;
         float start_time = Utils::read_time_in_seconds();
         run_episode(env, *logos, *planner, initial_noops, opt_lookahead_caching, opt_prefix_length_to_execute, opt_execute_single_action, opt_frameskip, opt_max_execution_length_in_frames, prefix);
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
         *logos << "episode-stats:"
+               // rom and log files
                << " rom=" << opt_rom
+               // planner
                << " planner=" << opt_planner_str
+               // general options
+               << " debug=" << opt_debug
+               << " frameskip=" << opt_frameskip
                << " seed=" << opt_random_seed
+               << " use-minimal-action-set=" << opt_use_minimal_action_set
+               // episodes and execution length
+               << " episodes=" << opt_episodes
+               << " max-execution-length=" << opt_max_execution_length_in_frames
+               // simulate previous execution
+               << " fixed-action-sequence=" << opt_fixed_action_sequence
+               // features
+               << " features=" << opt_screen_features
+               << " frames-background-image=" << opt_frames_for_background_image
+               // online execution
+               << " initial-noops=" << opt_initial_random_noops
+               << " execute-single-action=" << opt_execute_single_action
+               << " caching=" << opt_lookahead_caching
+               << " prefix-length-to-execute=" << opt_prefix_length_to_execute
                << " simulator-budget=" << opt_simulator_budget
                << " time-budget=" << opt_time_budget
-               << " features=" << opt_screen_features
+               // common options for planners
+               << " alpha=" << opt_alpha
+               << " discount=" << opt_discount
+               << " max-rep=" << opt_max_rep
+               << " nodes-threshold=" << opt_nodes_threshold
                << " novelty-subtables=" << opt_novelty_subtables
-               //<< " caching=" << opt_lookahead_caching
                << " random-actions=" << opt_random_actions
-               << " frameskip=" << opt_frameskip
+               << " use-alpha-to-update-reward-for-death=" << opt_use_alpha_to_update_reward_for_death
+               // rollout planner
+               << " max-depth=" << opt_max_depth
+               // bfs planner
+               << " break-ties-using-rewards=" << opt_break_ties_using_rewards
+               // data
+               << " score=" << g_acc_reward
+               << " frames=" << g_acc_frames
+               << " decisions=" << g_acc_decisions
                << " simulator-calls=" << g_acc_simulator_calls
                << " max-simulator-calls=" << g_max_simulator_calls
-               << " avg-simulator-calls=" << float(g_acc_simulator_calls) / float(g_acc_num_decisions)
-               << " decisions=" << g_acc_num_decisions
-               << " frames=" << g_acc_num_frames
-               << " score=" << g_acc_reward
                << " total-time=" << elapsed_time
-               << " avg-time-per-decision=" << elapsed_time / float(g_acc_num_decisions)
-               << " avg-time-per-frame=" << elapsed_time / float(g_acc_num_frames)
-               << " avg-expanded=" << float(g_acc_expanded) / float(g_acc_num_decisions)
-               << " avg-height=" << float(g_acc_height) / float(g_acc_num_decisions)
-               << " avg-random=" << float(g_acc_num_random_decisions) / float(g_acc_num_decisions)
+               << " simulator-time=" << g_acc_simulator_time
+               << " sum-expanded=" << g_acc_expanded
+               << " sum-height=" << g_acc_height
+               << " random-decisions=" << g_acc_random_decisions
                << endl;
     }
 

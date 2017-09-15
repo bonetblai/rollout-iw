@@ -74,6 +74,9 @@ struct SimPlanner : Planner {
         novel_atom_time_ = 0;
     }
 
+    virtual float simulator_time() const {
+        return sim_time_ + sim_reset_time_ + sim_get_set_state_time_;
+    }
     virtual size_t simulator_calls() const {
         return simulator_calls_;
     }

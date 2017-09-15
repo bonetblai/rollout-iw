@@ -245,7 +245,6 @@ int main(int argc, char **argv) {
     bool opt_use_alpha_to_update_reward_for_death = false;
 
     // options for rollout planner
-    //bool feature_stratification = false;
     int opt_max_depth;
 
     // options for bfs planner
@@ -255,55 +254,54 @@ int main(int argc, char **argv) {
     po::options_description opt_desc("Allowed options");
     opt_desc.add_options()
       // rom and log files
-      ("log-file", po::value<string>(&opt_log_file), "set path to log file (default is \"\" for no logging)")
-      ("rom", po::value<string>(&opt_rom), "set Atari ROM")
+      ("log-file", po::value<string>(&opt_log_file), "Set path to log file (default is \"\" for no logging)")
+      ("rom", po::value<string>(&opt_rom), "Set Atari ROM")
 
       // general options
-      ("help", "help message")
-      ("seed", po::value<int>(&opt_random_seed)->default_value(0), "set random seed")
-      ("debug", "turn on debug (default is off)")
-      ("frameskip", po::value<int>(&opt_frameskip)->default_value(5), "set frame skip rate")
-      ("nodisplay", "turn off display (default is display)")
-      ("sound", "turn on sound (default is no sound)")
-      ("rec-dir", po::value<string>(&opt_rec_dir), "set folder for recording (default is \"\" for no recording)")
-      ("rec-sound-filename", po::value<string>(&opt_rec_sound_filename), "set filename for recording sound (default is \"\" for no recording)")
-      ("minimal-action-set", "turn on minimal action set instead of larger legal action set")
+      ("help", "Help message")
+      ("seed", po::value<int>(&opt_random_seed)->default_value(0), "Set random seed")
+      ("debug", "Turn on debug (default is off)")
+      ("frameskip", po::value<int>(&opt_frameskip)->default_value(5), "Set frame skip rate")
+      ("nodisplay", "Turn off display (default is display)")
+      ("sound", "Turn on sound (default is no sound)")
+      ("rec-dir", po::value<string>(&opt_rec_dir), "Set folder for recording (default is \"\" for no recording)")
+      ("rec-sound-filename", po::value<string>(&opt_rec_sound_filename), "Set filename for recording sound (default is \"\" for no recording)")
+      ("minimal-action-set", "Turn on minimal action set instead of larger legal action set")
 
       // number of episodes and execution length
-      ("num-episodes", po::value<int>(&opt_episodes)->default_value(1), "set number of episodes (default is 1)")
-      ("max-execution-length", po::value<int>(&opt_max_execution_length_in_frames)->default_value(18000), "set max number of frames in single execution (default is 18k frames)")
+      ("num-episodes", po::value<int>(&opt_episodes)->default_value(1), "Set number of episodes (default is 1)")
+      ("max-execution-length", po::value<int>(&opt_max_execution_length_in_frames)->default_value(18000), "Set max number of frames in single execution (default is 18k frames)")
 
       // simulate previous execution
-      ("fixed-action-sequence", po::value<string>(&opt_fixed_action_sequence), "pass fixed action sequence that provides actions (default is \"\" for no such sequence")
+      ("fixed-action-sequence", po::value<string>(&opt_fixed_action_sequence), "Pass fixed action sequence that provides actions (default is \"\" for no such sequence")
 
       // features
-      ("features", po::value<int>(&opt_screen_features)->default_value(0), "set feature set: 0=RAM, 1=basic, 2=basic+B-PROS, 3=basic+B-PROS+B-PROT (default is 0)")
-      ("frames-background-image", po::value<int>(&opt_frames_for_background_image)->default_value(100), "set number of random frames to compute background image (default is 100 frames)")
+      ("features", po::value<int>(&opt_screen_features)->default_value(0), "Set feature set: 0=RAM, 1=basic, 2=basic+B-PROS, 3=basic+B-PROS+B-PROT (default is 0)")
+      ("frames-background-image", po::value<int>(&opt_frames_for_background_image)->default_value(100), "Set number of random frames to compute background image (default is 100 frames)")
 
       // options for online execution
-      ("initial-random-noops", po::value<int>(&opt_initial_random_noops)->default_value(30), "set max number of initial noops, actual # is sampled (default is 30)")
-      ("lookahead-caching", po::value<int>(&opt_lookahead_caching)->default_value(2), "set lookahead caching: 0=none, 1=partial, 2=full (default is 2)")
-      ("simulator-budget", po::value<int>(&opt_simulator_budget)->default_value(150000), "set budget for #calls to simulator for online decision making (default is 150k)")
-      ("time-budget", po::value<float>(&opt_time_budget)->default_value(numeric_limits<float>::infinity()), "set time budget for online decision making (default is infinite)")
-      ("execute-single-action", "execute only one action from best branch in lookahead (default is to execute prefix until first reward")
-      ("prefix-length-to-execute", po::value<float>(&opt_prefix_length_to_execute)->default_value(0.0), "set \% of prefix to execute (default is 0 = execute until positive reward)")
+      ("initial-random-noops", po::value<int>(&opt_initial_random_noops)->default_value(30), "Set max number of initial noops, actual # is sampled (default is 30)")
+      ("lookahead-caching", po::value<int>(&opt_lookahead_caching)->default_value(2), "Set lookahead caching: 0=none, 1=partial, 2=full (default is 2)")
+      ("simulator-budget", po::value<int>(&opt_simulator_budget)->default_value(150000), "Set budget for #calls to simulator for online decision making (default is 150k)")
+      ("time-budget", po::value<float>(&opt_time_budget)->default_value(numeric_limits<float>::infinity()), "Set time budget for online decision making (default is infinite)")
+      ("execute-single-action", "Execute only one action from best branch in lookahead (default is to execute prefix until first reward")
+      ("prefix-length-to-execute", po::value<float>(&opt_prefix_length_to_execute)->default_value(0.0), "Set \% of prefix to execute (default is 0 = execute until positive reward)")
 
       // planners
-      ("planner", po::value<string>(&opt_planner_str)->default_value(string("rollout")), "set planner, either 'rollout' or 'bfs'")
-      ("novelty-subtables", "turn on use of novelty subtables (default is to use single table)")
-      ("random-actions", "use random action when there are no rewards in look-ahead tree (default is off)")
-      ("max-rep", po::value<int>(&opt_max_rep)->default_value(30), "set max rep(etition) of screen features during lookahead (default is 30 frames)")
-      ("discount", po::value<float>(&opt_discount)->default_value(1.0), "set discount factor for lookahead (default is 1.0)")
-      ("alpha", po::value<float>(&opt_alpha)->default_value(1.0), "set alpha value for lookahead (default is 1.0)")
-      ("use-alpha-to-update-reward-for-death", "assign a big negative reward, depending on alpha's value, for deaths (default is off)")
-      ("nodes-threshold", po::value<int>(&opt_nodes_threshold)->default_value(50000), "set threshold for expanding look-ahead tree (default is 50,000 nodes)")
+      ("planner", po::value<string>(&opt_planner_str)->default_value(string("rollout")), "Set planner, either 'rollout' or 'bfs'")
+      ("novelty-subtables", "Turn on use of novelty subtables (default is to use single table)")
+      ("random-actions", "Use random action when there are no rewards in look-ahead tree (default is off)")
+      ("max-rep", po::value<int>(&opt_max_rep)->default_value(30), "Set max rep(etition) of screen features during lookahead (default is 30 frames)")
+      ("discount", po::value<float>(&opt_discount)->default_value(1.0), "Set discount factor for lookahead (default is 1.0)")
+      ("alpha", po::value<float>(&opt_alpha)->default_value(1.0), "Set alpha value for lookahead (default is 1.0)")
+      ("use-alpha-to-update-reward-for-death", "Assign a big negative reward, depending on alpha's value, for deaths (default is off)")
+      ("nodes-threshold", po::value<int>(&opt_nodes_threshold)->default_value(50000), "Set threshold for expanding look-ahead tree (default is 50,000 nodes)")
 
       // options for rollout planner
-      //("feature-stratification", "turn on feature stratification (default is off)")
-      ("max-depth", po::value<int>(&opt_max_depth)->default_value(1500), "set max depth for lookahead (default is 1500)")
+      ("max-depth", po::value<int>(&opt_max_depth)->default_value(1500), "Set max depth for lookahead (default is 1500)")
 
       // optiosn for bfs planner
-      ("break-ties-using-rewards", "break ties in favor of better rewards during bfs (default is no tie breaking)")
+      ("break-ties-using-rewards", "Break ties in favor of better rewards during bfs (default is no tie breaking)")
     ;
 
     po::positional_options_description opt_pos;
@@ -328,7 +326,6 @@ int main(int argc, char **argv) {
     opt_novelty_subtables = opt_varmap.count("novelty-subtables");
     opt_random_actions = opt_varmap.count("random-actions");
     opt_use_alpha_to_update_reward_for_death = opt_varmap.count("use-alpha-to-update-reward-for-death");
-    //feature_stratification = opt_varmap.count("feature-stratification");
     opt_break_ties_using_rewards = opt_varmap.count("break-ties-using-rewards");
 
     ostream *logos = &cout;
@@ -413,7 +410,6 @@ int main(int argc, char **argv) {
                                     opt_alpha,
                                     opt_use_alpha_to_update_reward_for_death,
                                     opt_nodes_threshold,
-                                    //feature_stratification,
                                     opt_max_depth,
                                     opt_debug);
         } else if( opt_planner_str == "bfs" ) {

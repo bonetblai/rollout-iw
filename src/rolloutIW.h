@@ -116,7 +116,6 @@ struct RolloutIW : SimPlanner {
 
         // novelty table and other vars
         std::map<int, std::vector<int> > novelty_table_map;
-        std::set<std::pair<bool, bool> > rewards_seen;
 
         // construct root node
         assert((root == nullptr) || (root->action_ == prefix.back()));
@@ -164,7 +163,6 @@ struct RolloutIW : SimPlanner {
             root->parent_->solved_ = false;
             while( !root->solved_ && (simulator_calls_ < simulator_budget_) && (elapsed_time < time_budget_) ) {
                 if( debug_ ) logos_ << '.' << std::flush;
-                std::pair<bool, bool> rewards_seen_in_rollout;
                 rollout(prefix,
                         root,
                         screen_features_,
@@ -172,9 +170,7 @@ struct RolloutIW : SimPlanner {
                         max_rep_,
                         alpha_,
                         use_alpha_to_update_reward_for_death_,
-                        novelty_table_map,
-                        rewards_seen_in_rollout);
-                rewards_seen.insert(rewards_seen_in_rollout);
+                        novelty_table_map);
                 elapsed_time = Utils::read_time_in_seconds() - start_time;
             }
             if( debug_ ) logos_ << std::endl;
@@ -182,6 +178,7 @@ struct RolloutIW : SimPlanner {
 
         // if nothing was expanded, return random actions (it can only happen with small time budget)
         if( root->children_.empty() ) {
+            assert(time_budget_ != std::numeric_limits<float>::infinity());
             random_decision_ = true;
             branch.push_back(random_action());
         } else {
@@ -199,24 +196,21 @@ struct RolloutIW : SimPlanner {
                        << ", imm-reward=" << root->reward_
                        << ", children=[";
                 for( size_t k = 0; k < root->children_.size(); ++k )
-                    logos_ << root->children_[k]->value_ << ":" << root->children_[k]->action_ << " ";
+                    logos_ << root->children_[k]->qvalue(discount_) << ":" << root->children_[k]->action_ << " ";
                 logos_ << "]" << Utils::normal() << std::endl;
             }
 
             // compute branch
-            if( root->value_ > 0 ) {
+            if( root->value_ != 0 ) {
                 root->best_branch(branch, discount_);
-            } else if( random_actions_ && (root->value_ == 0) ) {
-                random_decision_ = true;
-                branch.push_back(random_action());
-            } else if( (root->value_ == 0) && (root->reward_ == 0) ) {
-                root->longest_zero_branch(branch);
-                if( branch.empty() ) {
-                    random_decision_ = true;
-                    branch.push_back(random_action());
-                }
             } else {
-                root->best_branch(branch, discount_);
+                if( random_actions_ ) {
+                    random_decision_ = true;
+                    branch.push_back(random_zero_value_action(root, discount_));
+                } else {
+                    root->longest_zero_value_branch(discount_, branch);
+                    assert(!branch.empty());
+                }
             }
 
             // make sure states along branch exist (only needed when doing partial caching)
@@ -250,10 +244,8 @@ struct RolloutIW : SimPlanner {
                  size_t max_rep,
                  float alpha,
                  bool use_alpha_to_update_reward_for_death,
-                 std::map<int, std::vector<int> > &novelty_table_map,
-                 std::pair<bool, bool> &rewards_seen) const {
+                 std::map<int, std::vector<int> > &novelty_table_map) const {
         ++num_rollouts_;
-        rewards_seen = std::pair<bool, bool>(false, false);
 
         // apply prefix
         //apply_prefix(sim_, initial_sim_state_, prefix);
@@ -301,6 +293,13 @@ struct RolloutIW : SimPlanner {
             if( node->is_info_valid_ != 2 )
                 update_info(node, screen_features, alpha, use_alpha_to_update_reward_for_death);
 
+            // report non-zero rewards
+            if( node->reward_ > 0 ) {
+                if( debug_ ) logos_ << Utils::yellow() << "+" << Utils::normal() << std::flush;
+            } else if( node->reward_ < 0 ) {
+                if( debug_ ) logos_ << "-" << std::flush;
+            }
+
             // if terminal, label as solved and terminate rollout
             if( node->terminal_ ) {
                 node->visited_ = true;
@@ -323,15 +322,6 @@ struct RolloutIW : SimPlanner {
                 continue;
             }
 
-            // report non-zero rewards
-            if( node->reward_ > 0 ) {
-                rewards_seen.first = true;
-                if( debug_ ) logos_ << Utils::yellow() << "+" << Utils::normal() << std::flush;
-            } else if( node->reward_ < 0 ) {
-                rewards_seen.second = true;
-                if( debug_ ) logos_ << "-" << std::flush;
-            }
-
             // calculate novelty
             std::vector<int> &novelty_table = get_novelty_table(node, novelty_table_map, novelty_subtables_);
             int atom = get_novel_atom(node->depth_, node->feature_atoms_, novelty_table);
@@ -345,6 +335,9 @@ struct RolloutIW : SimPlanner {
                 //logos_ << "D" << std::flush;
                 break;
             } else if( novelty_table[atom] > node->depth_ ) { // novel => not(visited)
+                // when caching, the following assertion may be false as there
+                // are nodes in given tree. We just replace it by the if() expression.
+                // Table updates will only be done for nodes added to existing tree.
                 //assert(!node->visited_);
                 if( !node->visited_ ) {
                     ++num_cases_[0];
@@ -362,9 +355,8 @@ struct RolloutIW : SimPlanner {
                 break;
             } else if( node->visited_ && (novelty_table[atom] < node->depth_) ) { // not(novel) and visited => PRUNE
                 ++num_cases_[2];
-                node->remove_children();
+                //node->remove_children();
                 node->reward_ = -std::numeric_limits<float>::infinity();
-                rewards_seen.second = true;
                 if( debug_ ) logos_ << "-" << std::flush;
                 node->solve_and_backpropagate_label();
                 //logos_ << "X" << node->depth_ << std::flush;

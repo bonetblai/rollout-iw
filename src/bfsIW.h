@@ -169,6 +169,7 @@ struct BfsIW : SimPlanner {
 
         // if nothing was expanded, return random actions (it can only happen with small time budget)
         if( root->children_.empty() ) {
+            assert(time_budget_ != std::numeric_limits<float>::infinity());
             random_decision_ = true;
             branch.push_back(random_action());
         } else {
@@ -190,19 +191,16 @@ struct BfsIW : SimPlanner {
             }
 
             // compute branch
-            if( root->value_ > 0 ) {
+            if( root->value_ != 0 ) {
                 root->best_branch(branch, discount_);
-            } else if( random_actions_ && (root->value_ == 0) ) {
-                random_decision_ = true;
-                branch.push_back(random_action());
-            } else if( (root->value_ == 0) && (root->reward_ == 0) ) {
-                root->longest_zero_branch(branch);
-                if( branch.empty() ) {
-                    random_decision_ = true;
-                    branch.push_back(random_action());
-                }
             } else {
-                root->best_branch(branch, discount_);
+                if( random_actions_ ) {
+                    random_decision_ = true;
+                    branch.push_back(random_zero_value_action(root, discount_));
+                } else {
+                    root->longest_zero_value_branch(discount_, branch);
+                    assert(!branch.empty());
+                }
             }
 
             // make sure states along branch exist (only needed when doing partial caching)
@@ -234,10 +232,10 @@ struct BfsIW : SimPlanner {
         bool break_ties_using_rewards_;
         NodeComparator(bool break_ties_using_rewards) : break_ties_using_rewards_(break_ties_using_rewards) {
         }
-        bool operator()(const Node *n1, const Node *n2) const {
+        bool operator()(const Node *lhs, const Node *rhs) const {
             return
-              (n1->depth_ > n2->depth_) ||
-              (break_ties_using_rewards_ && (n1->depth_ == n2->depth_) && (n1->path_reward_ < n2->path_reward_));
+              (lhs->depth_ > rhs->depth_) ||
+              (break_ties_using_rewards_ && (lhs->depth_ == rhs->depth_) && (lhs->path_reward_ < rhs->path_reward_));
         }
     };
 

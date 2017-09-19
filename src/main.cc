@@ -143,11 +143,7 @@ void run_episode(ALEInterface &env,
 
         // advance/destroy lookhead tree
         if( node != nullptr ) {
-#if !defined(THREE_PTR_TREE)
-            if( (lookahead_caching == 0) || node->children_.empty() ) {
-#else
             if( (lookahead_caching == 0) || (node->num_children_ == 0) ) {
-#endif
                 remove_tree(node);
                 node = nullptr;
             } else {

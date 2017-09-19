@@ -129,26 +129,6 @@ struct BfsIW : SimPlanner {
         root->parent_->parent_ = nullptr;
 
         // if root has some children, make sure it has all children
-#if !defined(THREE_PTR_TREE)
-        if( !root->children_.empty() ) {
-            std::set<Action> root_actions;
-            for( size_t k = 0; k < root->children_.size(); ++k )
-                root_actions.insert(root->children_[k]->action_);
-
-            // complete children
-            assert(root->children_.size() <= action_set_.size());
-            if( root->children_.size() < action_set_.size() ) {
-                for( size_t k = 0; k < action_set_.size(); ++k ) {
-                    if( root_actions.find(action_set_[k]) == root_actions.end() )
-                        root->expand(action_set_[k]);
-                }
-            }
-            assert(root->children_.size() == action_set_.size());
-        } else {
-            // make sure this root node isn't marked as frame rep
-            root->parent_->feature_atoms_.clear();
-        }
-#else
         if( root->num_children_ > 0 ) {
             assert(root->first_child_ != nullptr);
             std::set<Action> root_actions;
@@ -168,7 +148,6 @@ struct BfsIW : SimPlanner {
             // make sure this root node isn't marked as frame rep
             root->parent_->feature_atoms_.clear();
         }
-#endif
 
         // normalize depths and recompute path rewards
         root->parent_->depth_ = -1;
@@ -190,19 +169,13 @@ struct BfsIW : SimPlanner {
         }
 
         // if nothing was expanded, return random actions (it can only happen with small time budget)
-#if !defined(THREE_PTR_TREE)
-        if( root->children_.empty() ) {
-#else
         if( root->num_children_ == 0 ) {
             assert(root->first_child_ == nullptr);
-#endif
             assert(time_budget_ != std::numeric_limits<float>::infinity());
             random_decision_ = true;
             branch.push_back(random_action());
         } else {
-#if defined(THREE_PTR_TREE)
             assert(root->first_child_ != nullptr);
-#endif
 
             // backup values and calculate heights
             root->backup_values(discount_);
@@ -216,13 +189,8 @@ struct BfsIW : SimPlanner {
                        << " value=" << root->value_
                        << ", imm-reward=" << root->reward_
                        << ", children=[";
-#if !defined(THREE_PTR_TREE)
-                for( size_t k = 0; k < root->children_.size(); ++k )
-                    logos_ << root->children_[k]->value_ << ":" << root->children_[k]->action_ << " ";
-#else
                 for( Node *child = root->first_child_; child != nullptr; child = child->sibling_ )
                     logos_ << child->value_ << ":" << child->action_ << " ";
-#endif
                 logos_ << "]" << Utils::normal() << std::endl;
             }
 
@@ -302,19 +270,11 @@ struct BfsIW : SimPlanner {
             if( debug_ ) logos_ << node->depth_ << "@" << node->path_reward_ << std::flush;
 
             // update node info
-#if !defined(THREE_PTR_TREE)
-            assert(node->children_.empty());
-#else
             assert((node->num_children_ == 0) && (node->first_child_ == nullptr));
-#endif
             assert(node->visited_ || (node->is_info_valid_ != 2));
             if( node->is_info_valid_ != 2 ) {
                 update_info(node, screen_features, alpha, use_alpha_to_update_reward_for_death);
-#if !defined(THREE_PTR_TREE)
-                assert(node->children_.empty());
-#else
                 assert((node->num_children_ == 0) && (node->first_child_ == nullptr));
-#endif
                 node->visited_ = true;
             }
 
@@ -358,21 +318,12 @@ struct BfsIW : SimPlanner {
                 assert((node->parent_ != nullptr) && (screen_features > 0));
                 node->expand(node->action_);
             }
-#if !defined(THREE_PTR_TREE)
-            assert(!node->children_.empty());
-            if( debug_ ) logos_ << node->children_.size() << "," << std::flush;
-
-            // add children to queue
-            for( size_t k = 0; k < node->children_.size(); ++k )
-                q.push(node->children_[k]);
-#else
             assert((node->num_children_ > 0) && (node->first_child_ != nullptr));
             if( debug_ ) logos_ << node->num_children_ << "," << std::flush;
 
             // add children to queue
             for( Node *child = node->first_child_; child != nullptr; child = child->sibling_ )
                 q.push(child);
-#endif
         }
         if( debug_ ) logos_ << std::endl;
     }
@@ -383,14 +334,6 @@ struct BfsIW : SimPlanner {
         while( !q.empty() ) {
             Node *n = q.front();
             q.pop_front();
-#if !defined(THREE_PTR_TREE)
-            if( n->children_.empty() ) {
-                pq.push(n);
-            } else {
-                for( size_t k = 0; k < n->children_.size(); ++k )
-                    q.push_back(n->children_[k]);
-            }
-#else
             if( n->num_children_ == 0 ) {
                 assert(n->first_child_ == nullptr);
                 pq.push(n);
@@ -399,7 +342,6 @@ struct BfsIW : SimPlanner {
                 for( Node *child = n->first_child_; child != nullptr; child = child->sibling_ )
                     q.push_back(child);
             }
-#endif
         }
     }
 
@@ -419,19 +361,16 @@ struct BfsIW : SimPlanner {
 
         for( std::map<int, std::vector<int> >::const_iterator it = novelty_table_map.begin(); it != novelty_table_map.end(); ++it )
             os << it->first << ":" << num_entries(it->second) << "/" << it->second.size() << ",";
+
         os << "]";
 
         os << " #nodes=" << root.num_nodes()
            << " #tips=" << root.num_tip_nodes()
            << " height=[" << root.height_ << ":";
 
-#if !defined(THREE_PTR_TREE)
-        for( size_t k = 0; k < root.children_.size(); ++k )
-            os << root.children_[k]->height_ << ",";
-#else
         for( Node *child = root.first_child_; child != nullptr; child = child->sibling_ )
             os << child->height_ << ",";
-#endif
+
         os << "]";
 
         os << " #expansions=" << num_expansions_

@@ -26,7 +26,7 @@ LDFLAGS += -lboost_filesystem -lboost_system -lboost_program_options
 
 all: $(FILE)
 
-$(FILE):    main.cc node.h planner.h bfsIW.h rolloutIW.h screen.h utils.h
+$(FILE):    main.cc node.h planner.h sim_planner.h bfsIW.h rolloutIW.h screen.h utils.h
 	$(CXX) $(DEFINES) $(FLAGS) main.cc $(LDFLAGS) -o $(FILE) -Wall -O3
 
 clean:

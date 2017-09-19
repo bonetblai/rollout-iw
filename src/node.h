@@ -148,6 +148,27 @@ class Node {
         }
     }
 
+    float qvalue(float discount) const {
+        return reward_ + discount * value_;
+    }
+
+    float backup_values_upward(float discount) {
+        assert(children_.empty() || (is_info_valid_ != 0));
+        value_ = 0;
+        if( !children_.empty() ) {
+            float max_child_value = -std::numeric_limits<float>::infinity();
+            for( size_t k = 0; k < children_.size(); ++k ) {
+                float child_value = children_[k]->qvalue(discount);
+                max_child_value = std::max(max_child_value, child_value);
+            }
+            value_ = max_child_value;
+        }
+        if( parent_ == nullptr )
+            return value_;
+        else
+            return parent_->backup_values_upward(discount);
+    }
+
     float backup_values(float discount) {
         assert(children_.empty() || (is_info_valid_ != 0));
         value_ = 0;
@@ -181,10 +202,6 @@ class Node {
             value_ = reward_ + discount * max_child_value;
             return reward_ + discount * value_along_branch;
         }
-    }
-
-    float qvalue(float discount) const {
-        return reward_ + discount * value_;
     }
 
     const Node *best_tip_node(float discount) const { // NOT USED

@@ -241,16 +241,19 @@ struct SimPlanner : Planner {
         }
     }
 
-    void update_novelty_table(int novel_atom, size_t depth, const std::vector<int> &feature_atoms, std::vector<int> &novelty_table) const {
-        assert(novelty_table[novel_atom] > depth);
+    size_t update_novelty_table(size_t depth, const std::vector<int> &feature_atoms, std::vector<int> &novelty_table) const {
         float start_time = Utils::read_time_in_seconds();
         size_t first_index = 0;
+        size_t number_updated_entries = 0;
         for( size_t k = first_index; k < feature_atoms.size(); ++k ) {
             assert((feature_atoms[k] >= 0) && (feature_atoms[k] < novelty_table.size()));
-            if( depth < novelty_table[feature_atoms[k]] )
+            if( depth < novelty_table[feature_atoms[k]] ) {
                 novelty_table[feature_atoms[k]] = depth;
+                ++number_updated_entries;
+            }
         }
         update_novelty_time_ += Utils::read_time_in_seconds() - start_time;
+        return number_updated_entries;
     }
 
     int get_novel_atom(size_t depth, const std::vector<int> &feature_atoms, const std::vector<int> &novelty_table) const {

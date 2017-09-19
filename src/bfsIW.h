@@ -300,7 +300,7 @@ struct BfsIW : SimPlanner {
                 }
 
                 // update novelty table
-                update_novelty_table(atom, node->depth_, node->feature_atoms_, novelty_table);
+                update_novelty_table(node->depth_, node->feature_atoms_, novelty_table);
             }
             if( debug_ ) logos_ << "+" << std::flush;
 

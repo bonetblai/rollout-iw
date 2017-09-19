@@ -335,14 +335,17 @@ struct RolloutIW : SimPlanner {
                 //logos_ << "D" << std::flush;
                 break;
             } else if( novelty_table[atom] > node->depth_ ) { // novel => not(visited)
-                // when caching, the following assertion may be false as there
-                // are nodes in given tree. We just replace it by the if() expression.
-                // Table updates will only be done for nodes added to existing tree.
-                //assert(!node->visited_);
+                // when caching, the assertion
+                //
+                //   assert(!node->visited_);
+                //
+                // may be false as there may be nodes in given tree. We just replace
+                // it by the if() expression below. Table updates are only peformed for
+                // nodes added to existing tree.
                 if( !node->visited_ ) {
                     ++num_cases_[0];
                     node->visited_ = true;
-                    update_novelty_table(atom, node->depth_, node->feature_atoms_, novelty_table);
+                    update_novelty_table(node->depth_, node->feature_atoms_, novelty_table);
                     //logos_ << Utils::green() << "n" << Utils::normal() << std::flush;
                 }
                 continue;

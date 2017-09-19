@@ -129,6 +129,7 @@ struct RolloutIW : SimPlanner {
         root->parent_->parent_ = nullptr;
 
         // if root has some children, make sure it has all children
+#if !defined(THREE_PTR_TREE)
         if( !root->children_.empty() ) {
             std::set<Action> root_actions;
             for( size_t k = 0; k < root->children_.size(); ++k )
@@ -147,6 +148,27 @@ struct RolloutIW : SimPlanner {
             // make sure this root node isn't marked as frame rep
             root->parent_->feature_atoms_.clear();
         }
+#else
+        if( root->num_children_ > 0 ) {
+            assert(root->first_child_ != nullptr);
+            std::set<Action> root_actions;
+            for( Node *child = root->first_child_; child != nullptr; child = child->sibling_ )
+                root_actions.insert(child->action_);
+
+            // complete children
+            assert(root->num_children_ <= action_set_.size());
+            if( root->num_children_ < action_set_.size() ) {
+                for( size_t k = 0; k < action_set_.size(); ++k ) {
+                    if( root_actions.find(action_set_[k]) == root_actions.end() )
+                        root->expand(action_set_[k]);
+                }
+            }
+            assert(root->num_children_ == action_set_.size());
+        } else {
+            // make sure this root node isn't marked as frame rep
+            root->parent_->feature_atoms_.clear();
+        }
+#endif
 
         // normalize depths, reset rep counters, and recompute path rewards
         root->parent_->depth_ = -1;
@@ -177,11 +199,20 @@ struct RolloutIW : SimPlanner {
         }
 
         // if nothing was expanded, return random actions (it can only happen with small time budget)
+#if !defined(THREE_PTR_TREE)
         if( root->children_.empty() ) {
+#else
+        if( root->num_children_ == 0 ) {
+            assert(root->first_child_ == nullptr);
+#endif
             assert(time_budget_ != std::numeric_limits<float>::infinity());
             random_decision_ = true;
             branch.push_back(random_action());
         } else {
+#if defined(THREE_PTR_TREE)
+            assert(root->first_child_ != nullptr);
+#endif
+
             // backup values and calculate heights
             root->backup_values(discount_);
             root->calculate_height();
@@ -195,8 +226,13 @@ struct RolloutIW : SimPlanner {
                        << ", value=" << root->value_
                        << ", imm-reward=" << root->reward_
                        << ", children=[";
+#if !defined(THREE_PTR_TREE)
                 for( size_t k = 0; k < root->children_.size(); ++k )
                     logos_ << root->children_[k]->qvalue(discount_) << ":" << root->children_[k]->action_ << " ";
+#else
+                for( Node *child = root->first_child_; child != nullptr; child = child->sibling_ )
+                    logos_ << child->qvalue(discount_) << ":" << child->action_ << " ";
+#endif
                 logos_ << "]" << Utils::normal() << std::endl;
             }
 
@@ -260,6 +296,7 @@ struct RolloutIW : SimPlanner {
             assert(node->is_info_valid_ == 2);
 
             // if first time at this node, expand node
+#if !defined(THREE_PTR_TREE)
             if( node->children_.empty() ) {
                 if( node->frame_rep_ == 0 ) {
                     ++num_expansions_;
@@ -272,8 +309,25 @@ struct RolloutIW : SimPlanner {
                 }
                 assert(!node->children_.empty());
             }
+#else
+            if( node->num_children_ == 0 ) {
+                assert(node->first_child_ == nullptr);
+                if( node->frame_rep_ == 0 ) {
+                    ++num_expansions_;
+                    float start_time = Utils::read_time_in_seconds();
+                    node->expand(action_set_);
+                    expand_time_ += Utils::read_time_in_seconds() - start_time;
+                } else {
+                    assert((node->parent_ != nullptr) && (screen_features > 0));
+                    node->expand(node->action_);
+                }
+                assert((node->num_children_ > 0) && (node->first_child_ != nullptr));
+            }
+#endif
 
             // pick random unsolved child
+            bool selected = false;
+#if !defined(THREE_PTR_TREE)
             size_t num_unsolved_children = 0;
             for( size_t k = 0; k < node->children_.size(); ++k )
                 num_unsolved_children += node->children_[k]->solved_ ? 0 : 1;
@@ -283,11 +337,31 @@ struct RolloutIW : SimPlanner {
                 if( !node->children_[k]->solved_ ) {
                     if( index == 0 ) {
                         node = node->children_[k];
+                        selected = true;
                         break;
                     }
                     --index;
                 }
             }
+#else
+            size_t num_unsolved_children = 0;
+            for( Node *child = node->first_child_; child != nullptr; child = child->sibling_ )
+                num_unsolved_children += child->solved_ ? 0 : 1;
+            assert(num_unsolved_children > 0);
+            size_t index = lrand48() % num_unsolved_children;
+            for( Node *child = node->first_child_; child != nullptr; child = child->sibling_ ) {
+                if( !child->solved_ ) {
+                    if( index == 0 ) {
+                        node = child;
+                        selected = true;
+                        break;
+                    }
+                    --index;
+                }
+            }
+#endif
+            assert(selected);
+            assert(!node->solved_);
 
             // update info
             if( node->is_info_valid_ != 2 )
@@ -303,7 +377,11 @@ struct RolloutIW : SimPlanner {
             // if terminal, label as solved and terminate rollout
             if( node->terminal_ ) {
                 node->visited_ = true;
+#if !defined(THREE_PTR_TREE)
                 assert(node->children_.empty());
+#else
+                assert((node->num_children_ == 0) && (node->first_child_ == nullptr));
+#endif
                 node->solve_and_backpropagate_label();
                 //logos_ << "T[reward=" << node->reward_ << "]" << std::flush;
                 break;
@@ -312,7 +390,11 @@ struct RolloutIW : SimPlanner {
             // verify repetitions of feature atoms (screen mode)
             if( node->frame_rep_ > max_rep ) {
                 node->visited_ = true;
+#if !defined(THREE_PTR_TREE)
                 assert(node->children_.empty());
+#else
+                assert((node->num_children_ == 0) && (node->first_child_ == nullptr));
+#endif
                 node->solve_and_backpropagate_label();
                 //logos_ << "R" << std::flush;
                 break;
@@ -330,7 +412,11 @@ struct RolloutIW : SimPlanner {
             // five cases
             if( node->depth_ > max_depth ) {
                 node->visited_ = true;
+#if !defined(THREE_PTR_TREE)
                 assert(node->children_.empty());
+#else
+                assert((node->num_children_ == 0) && (node->first_child_ == nullptr));
+#endif
                 node->solve_and_backpropagate_label();
                 //logos_ << "D" << std::flush;
                 break;
@@ -352,7 +438,11 @@ struct RolloutIW : SimPlanner {
             } else if( !node->visited_ && (novelty_table[atom] <= node->depth_) ) { // not(novel) and not(visited) => PRUNE
                 ++num_cases_[1];
                 node->visited_ = true;
+#if !defined(THREE_PTR_TREE)
                 assert(node->children_.empty());
+#else
+                assert((node->num_children_ == 0) && (node->first_child_ == nullptr));
+#endif
                 node->solve_and_backpropagate_label();
                 //logos_ << "x" << node->depth_ << std::flush;
                 break;
@@ -375,8 +465,13 @@ struct RolloutIW : SimPlanner {
 
     void clear_solved_labels(Node *node) const {
         node->solved_ = false;
+#if !defined(THREE_PTR_TREE)
         for( size_t k = 0; k < node->children_.size(); ++k )
             clear_solved_labels(node->children_[k]);
+#else
+        for( Node *child = node->first_child_; child != nullptr; child = child->sibling_ )
+            clear_solved_labels(child);
+#endif
     }
 
     void reset_stats() const {
@@ -407,8 +502,13 @@ struct RolloutIW : SimPlanner {
            << " #tips=" << root.num_tip_nodes()
            << " height=[" << root.height_ << ":";
 
+#if !defined(THREE_PTR_TREE)
         for( size_t k = 0; k < root.children_.size(); ++k )
             os << root.children_[k]->height_ << ",";
+#else
+        for( Node *child = root.first_child_; child != nullptr; child = child->sibling_ )
+            os << child->height_ << ",";
+#endif
         os << "]";
 
         os << " #expansions=" << num_expansions_

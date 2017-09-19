@@ -86,12 +86,23 @@ struct SimPlanner : Planner {
 
     Action random_zero_value_action(const Node *root, float discount) const {
         assert(root != 0);
+#if !defined(THREE_PTR_TREE)
         assert(!root->children_.empty());
+#else
+        assert((root->num_children_ > 0) && (root->first_child_ != nullptr));
+#endif
         std::vector<Action> zero_value_actions;
+#if !defined(THREE_PTR_TREE)
         for( size_t k = 0; k < root->children_.size(); ++k ) {
             if( root->children_[k]->qvalue(discount) == 0 )
                 zero_value_actions.push_back(root->children_[k]->action_);
         }
+#else
+        for( Node *child = root->first_child_; child != nullptr; child = child->sibling_ ) {
+            if( child->qvalue(discount) == 0 )
+                zero_value_actions.push_back(child->action_);
+        }
+#endif
         assert(!zero_value_actions.empty());
         return zero_value_actions[lrand48() % zero_value_actions.size()];
     }
@@ -184,7 +195,11 @@ struct SimPlanner : Planner {
             get_atoms_from_screen(node, screen_features);
             if( (node->parent_ != nullptr) && (node->parent_->feature_atoms_ == node->feature_atoms_) ) {
                 node->frame_rep_ = node->parent_->frame_rep_ + frameskip_;
+#if !defined(THREE_PTR_TREE)
                 assert(node->children_.empty());
+#else
+                assert((node->num_children_ == 0) && (node->first_child_ == nullptr));
+#endif
             }
         }
         assert((node->frame_rep_ == 0) || (screen_features > 0));
@@ -315,15 +330,24 @@ struct SimPlanner : Planner {
                 update_info(node, screen_features, alpha, use_alpha_to_update_reward_for_death);
             }
 
-            Node *child = nullptr;
+            Node *selected = nullptr;
+#if !defined(THREE_PTR_TREE)
             for( size_t k = 0; k < node->children_.size(); ++k ) {
                 if( node->children_[k]->action_ == branch[pos] ) {
-                    child = node->children_[k];
+                    selected = node->children_[k];
                     break;
                 }
             }
-            assert(child != nullptr);
-            node = child;
+#else
+            for( Node *child = node->first_child_; child != nullptr; child = child->sibling_ ) {
+                if( child->action_ == branch[pos] ) {
+                    selected = child;
+                    break;
+                }
+            }
+#endif
+            assert(selected != nullptr);
+            node = selected;
         }
     }
 };

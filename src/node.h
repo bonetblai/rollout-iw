@@ -29,7 +29,7 @@ class Node {
 
     mutable ALEState *state_;                // state for this node
     mutable std::vector<int> feature_atoms_; // features made true by this node
-    //mutable int num_novel_features_;         // number of features this node makes novel
+    mutable int num_novel_features_;         // number of features this node makes novel
     mutable int frame_rep_;                  // frame counter for number identical feature atoms through ancestors
 
     // structure
@@ -55,6 +55,7 @@ class Node {
         value_(0),
         ale_lives_(-1),
         state_(nullptr),
+        num_novel_features_(0),
         frame_rep_(0),
 #if defined(THREE_PTR_TREE)
         first_child_(nullptr),

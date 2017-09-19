@@ -3,7 +3,7 @@ USE_SDL := 1
 # This will likely need to be changed to suit your installation.
 ALE := ../../Arcade-Learning-Environment
 
-FLAGS := -std=c++11 -I$(ALE)/src -I$(ALE)/src/controllers -I$(ALE)/src/os_dependent -I$(ALE)/src/environment -I$(ALE)/src/external -L$(ALE) #-DTHREE_PTR_TREE
+FLAGS := -std=c++11 -I$(ALE)/src -I$(ALE)/src/controllers -I$(ALE)/src/os_dependent -I$(ALE)/src/environment -I$(ALE)/src/external -L$(ALE) -DTHREE_PTR_TREE
 CXX := clang++
 FILE := rom_planner
 LDFLAGS := -lale -lz

@@ -296,71 +296,10 @@ struct RolloutIW : SimPlanner {
             assert(node->is_info_valid_ == 2);
 
             // if first time at this node, expand node
-#if !defined(THREE_PTR_TREE)
-            if( node->children_.empty() ) {
-                if( node->frame_rep_ == 0 ) {
-                    ++num_expansions_;
-                    float start_time = Utils::read_time_in_seconds();
-                    node->expand(action_set_);
-                    expand_time_ += Utils::read_time_in_seconds() - start_time;
-                } else {
-                    assert((node->parent_ != nullptr) && (screen_features > 0));
-                    node->expand(node->action_);
-                }
-                assert(!node->children_.empty());
-            }
-#else
-            if( node->num_children_ == 0 ) {
-                assert(node->first_child_ == nullptr);
-                if( node->frame_rep_ == 0 ) {
-                    ++num_expansions_;
-                    float start_time = Utils::read_time_in_seconds();
-                    node->expand(action_set_);
-                    expand_time_ += Utils::read_time_in_seconds() - start_time;
-                } else {
-                    assert((node->parent_ != nullptr) && (screen_features > 0));
-                    node->expand(node->action_);
-                }
-                assert((node->num_children_ > 0) && (node->first_child_ != nullptr));
-            }
-#endif
+            expand_if_necessary(node);
 
             // pick random unsolved child
-            bool selected = false;
-#if !defined(THREE_PTR_TREE)
-            size_t num_unsolved_children = 0;
-            for( size_t k = 0; k < node->children_.size(); ++k )
-                num_unsolved_children += node->children_[k]->solved_ ? 0 : 1;
-            assert(num_unsolved_children > 0);
-            size_t index = lrand48() % num_unsolved_children;
-            for( size_t k = 0; k < node->children_.size(); ++k ) {
-                if( !node->children_[k]->solved_ ) {
-                    if( index == 0 ) {
-                        node = node->children_[k];
-                        selected = true;
-                        break;
-                    }
-                    --index;
-                }
-            }
-#else
-            size_t num_unsolved_children = 0;
-            for( Node *child = node->first_child_; child != nullptr; child = child->sibling_ )
-                num_unsolved_children += child->solved_ ? 0 : 1;
-            assert(num_unsolved_children > 0);
-            size_t index = lrand48() % num_unsolved_children;
-            for( Node *child = node->first_child_; child != nullptr; child = child->sibling_ ) {
-                if( !child->solved_ ) {
-                    if( index == 0 ) {
-                        node = child;
-                        selected = true;
-                        break;
-                    }
-                    --index;
-                }
-            }
-#endif
-            assert(selected);
+            node = pick_unsolved_child(node);
             assert(!node->solved_);
 
             // update info
@@ -431,7 +370,7 @@ struct RolloutIW : SimPlanner {
                 if( !node->visited_ ) {
                     ++num_cases_[0];
                     node->visited_ = true;
-                    update_novelty_table(node->depth_, node->feature_atoms_, novelty_table);
+                    node->num_novel_features_ = update_novelty_table(node->depth_, node->feature_atoms_, novelty_table);
                     //logos_ << Utils::green() << "n" << Utils::normal() << std::flush;
                 }
                 continue;
@@ -461,6 +400,98 @@ struct RolloutIW : SimPlanner {
                 continue;
             }
         }
+    }
+
+    void expand_if_necessary(Node *node) const {
+#if !defined(THREE_PTR_TREE)
+        if( node->children_.empty() ) {
+            if( node->frame_rep_ == 0 ) {
+                ++num_expansions_;
+                float start_time = Utils::read_time_in_seconds();
+                node->expand(action_set_);
+                expand_time_ += Utils::read_time_in_seconds() - start_time;
+            } else {
+                assert((node->parent_ != nullptr) && (screen_features > 0));
+                node->expand(node->action_);
+            }
+            assert(!node->children_.empty());
+        }
+#else
+        if( node->num_children_ == 0 ) {
+            assert(node->first_child_ == nullptr);
+            if( node->frame_rep_ == 0 ) {
+                ++num_expansions_;
+                float start_time = Utils::read_time_in_seconds();
+                node->expand(action_set_);
+                expand_time_ += Utils::read_time_in_seconds() - start_time;
+            } else {
+                assert((node->parent_ != nullptr) && (screen_features_ > 0));
+                node->expand(node->action_);
+            }
+            assert((node->num_children_ > 0) && (node->first_child_ != nullptr));
+        }
+#endif
+    }
+
+    Node* pick_unsolved_child(const Node *node) const {
+        Node *selected = nullptr;
+
+        // decide to pick among all unsolved children or among those
+        // with biggest number of novel features
+        bool filter_unsolved_children = false; //lrand48() % 2;
+
+        // select unsolved child
+#if !defined(THREE_PTR_TREE)
+        size_t num_candidates = 0;
+        int novel_features_threshold = std::numeric_limits<int>::min();;
+        for( size_t k = 0; k < node->children_.size(); ++k ) {
+            if( !node->children_[k]->solved_ && (node->children_[k]->num_novel_features_ >= novel_features_threshold) ) {
+                if( filter_unsolved_children && (node->children_[k]->num_novel_features_ > novel_features_threshold) ) {
+                    novel_features_threshold = child->num_novel_features_;
+                    num_candidates = 0;
+                }
+                ++num_candidates;
+            }
+        }
+        assert(num_candidates > 0);
+        size_t index = lrand48() % num_candidates;
+        for( size_t k = 0; k < node->children_.size(); ++k ) {
+            if( !node->children_[k]->solved_ && (node->children_[k]->num_novel_features_ >= novel_features_threshold) ) {
+                if( index == 0 ) {
+                    selected = node->children_[k];
+                    break;
+                }
+                --index;
+            }
+        }
+#else
+        size_t num_candidates = 0;
+        int novel_features_threshold = std::numeric_limits<int>::min();;
+        for( Node *child = node->first_child_; child != nullptr; child = child->sibling_ ) {
+            if( !child->solved_ && (child->num_novel_features_ >= novel_features_threshold) ) {
+                if( filter_unsolved_children && (child->num_novel_features_ > novel_features_threshold) ) {
+                    novel_features_threshold = child->num_novel_features_;
+                    num_candidates = 0;
+                }
+                ++num_candidates;
+            }
+        }
+        assert(num_candidates > 0);
+        size_t index = lrand48() % num_candidates;
+        for( Node *child = node->first_child_; child != nullptr; child = child->sibling_ ) {
+            if( !child->solved_ && (child->num_novel_features_ >= novel_features_threshold) ) {
+                if( index == 0 ) {
+                    selected = child;
+                    break;
+                }
+                --index;
+            }
+        }
+#endif
+        if( selected == nullptr ) std::cout << "X: #candidates=" << num_candidates << std::endl;
+        assert(selected != nullptr);
+        assert(!selected->solved_);
+        return selected;
     }
 
     void clear_solved_labels(Node *node) const {

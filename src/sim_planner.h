@@ -84,6 +84,18 @@ struct SimPlanner : Planner {
         return action_set_[lrand48() % action_set_.size()];
     }
 
+    Action random_zero_value_action(const Node *root, float discount) const {
+        assert(root != 0);
+        assert(!root->children_.empty());
+        std::vector<Action> zero_value_actions;
+        for( size_t k = 0; k < root->children_.size(); ++k ) {
+            if( root->children_[k]->qvalue(discount) == 0 )
+                zero_value_actions.push_back(root->children_[k]->action_);
+        }
+        assert(!zero_value_actions.empty());
+        return zero_value_actions[lrand48() % zero_value_actions.size()];
+    }
+
     float call_simulator(ALEInterface &ale, Action action) const {
         ++simulator_calls_;
         float start_time = Utils::read_time_in_seconds();
@@ -205,6 +217,7 @@ struct SimPlanner : Planner {
         if( !use_novelty_subtables ) {
             return 0;
         } else {
+            assert(node->path_reward_ != std::numeric_limits<float>::infinity());
             if( node->path_reward_ <= 0 ) {
                 return 0;
             } else {

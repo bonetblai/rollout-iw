@@ -150,19 +150,20 @@ class Node {
 
     float backup_values(float discount) {
         assert(children_.empty() || (is_info_valid_ != 0));
-        value_ = reward_;
+        value_ = 0;
         if( !children_.empty() ) {
             float max_child_value = -std::numeric_limits<float>::infinity();
             for( size_t k = 0; k < children_.size(); ++k ) {
-                float child_value = children_[k]->backup_values(discount);
+                children_[k]->backup_values(discount);
+                float child_value = children_[k]->qvalue(discount);
                 max_child_value = std::max(max_child_value, child_value);
             }
-            value_ += discount * max_child_value;
+            value_ = max_child_value;
         }
         return value_;
     }
 
-    float backup_values_along_branch(const std::deque<Action> &branch, float discount, size_t index = 0) {
+    float backup_values_along_branch(const std::deque<Action> &branch, float discount, size_t index = 0) { // NOT USED
         //assert(is_info_valid_ && !children_.empty()); // tree now grows past branch
         if( index == branch.size() ) {
             backup_values(discount);
@@ -182,24 +183,24 @@ class Node {
         }
     }
 
-    float qvalue(const Node &child, float discount) const {
-        return reward_ + discount * child.value_;
+    float qvalue(float discount) const {
+        return reward_ + discount * value_;
     }
 
-    const Node *best_tip_node(float discount) const {
+    const Node *best_tip_node(float discount) const { // NOT USED
         if( children_.empty() ) {
             return this;
         } else {
             size_t num_best_children = 0;
             for( size_t k = 0; k < children_.size(); ++k ) {
                 const Node &child = *children_[k];
-                num_best_children += qvalue(child, discount) == value_;
+                num_best_children += child.qvalue(discount) == value_;
             }
             assert(num_best_children > 0);
             size_t index_best_child = lrand48() % num_best_children;
             for( size_t k = 0; k < children_.size(); ++k ) {
                 const Node &child = *children_[k];
-                if( qvalue(child, discount) == value_ ) {
+                if( child.qvalue(discount) == value_ ) {
                     if( index_best_child == 0 )
                         return child.best_tip_node(discount);
                     --index_best_child;
@@ -214,13 +215,13 @@ class Node {
             size_t num_best_children = 0;
             for( size_t k = 0; k < children_.size(); ++k ) {
                 const Node &child = *children_[k];
-                num_best_children += qvalue(child, discount) == value_;
+                num_best_children += child.qvalue(discount) == value_;
             }
             assert(num_best_children > 0);
             size_t index_best_child = lrand48() % num_best_children;
             for( size_t k = 0; k < children_.size(); ++k ) {
                 const Node &child = *children_[k];
-                if( qvalue(child, discount) == value_ ) {
+                if( child.qvalue(discount) == value_ ) {
                     if( index_best_child == 0 ) {
                         branch.push_back(child.action_);
                         child.best_branch(branch, discount);
@@ -232,14 +233,14 @@ class Node {
         }
     }
 
-    void longest_zero_branch(std::deque<Action> &branch) const {
-        assert((reward_ == 0) && (value_ == 0));
+    void longest_zero_value_branch(float discount, std::deque<Action> &branch) const {
+        assert(value_ == 0);
         if( !children_.empty() ) {
             size_t max_height = 0;
             size_t num_best_children = 0;
             for( size_t k = 0; k < children_.size(); ++k ) {
                 const Node &child = *children_[k];
-                if( (child.reward_ == 0) && (child.value_ == 0) && (child.height_ >= max_height) ) {
+                if( (child.qvalue(discount) == 0) && (child.height_ >= max_height) ) {
                     if( child.height_ > max_height ) {
                         max_height = child.height_;
                         num_best_children = 0;
@@ -247,18 +248,17 @@ class Node {
                     ++num_best_children;
                 }
             }
-            if( num_best_children > 0 ) {
-                size_t index_best_child = lrand48() % num_best_children;
-                for( size_t k = 0; k < children_.size(); ++k ) {
-                    const Node &child = *children_[k];
-                    if( (child.reward_ == 0) && (child.value_ == 0) && (child.height_ == max_height) ) {
-                        if( index_best_child == 0 ) {
-                            branch.push_back(child.action_);
-                            child.longest_zero_branch(branch);
-                            break;
-                        }
-                        --index_best_child;
+            assert(num_best_children > 0);
+            size_t index_best_child = lrand48() % num_best_children;
+            for( size_t k = 0; k < children_.size(); ++k ) {
+                const Node &child = *children_[k];
+                if( (child.qvalue(discount) == 0) && (child.height_ == max_height) ) {
+                    if( index_best_child == 0 ) {
+                        branch.push_back(child.action_);
+                        child.longest_zero_value_branch(discount, branch);
+                        break;
                     }
+                    --index_best_child;
                 }
             }
         }

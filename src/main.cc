@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <limits>
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include <boost/tokenizer.hpp>

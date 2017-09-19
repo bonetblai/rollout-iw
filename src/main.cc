@@ -143,7 +143,11 @@ void run_episode(ALEInterface &env,
 
         // advance/destroy lookhead tree
         if( node != nullptr ) {
+#if !defined(THREE_PTR_TREE)
             if( (lookahead_caching == 0) || node->children_.empty() ) {
+#else
+            if( (lookahead_caching == 0) || (node->num_children_ == 0) ) {
+#endif
                 remove_tree(node);
                 node = nullptr;
             } else {
@@ -260,9 +264,9 @@ int main(int argc, char **argv) {
 
       // general options
       ("help", "Help message")
-      ("seed", po::value<int>(&opt_random_seed)->default_value(0), "Set random seed")
+      ("seed", po::value<int>(&opt_random_seed)->default_value(0), "Set random seed (default is 0)")
       ("debug", "Turn on debug (default is off)")
-      ("frameskip", po::value<int>(&opt_frameskip)->default_value(5), "Set frame skip rate")
+      ("frameskip", po::value<int>(&opt_frameskip)->default_value(15), "Set frame skip rate (default is 15)")
       ("nodisplay", "Turn off display (default is display)")
       ("sound", "Turn on sound (default is no sound)")
       ("rec-dir", po::value<string>(&opt_rec_dir), "Set folder for recording (default is \"\" for no recording)")
@@ -277,8 +281,8 @@ int main(int argc, char **argv) {
       ("fixed-action-sequence", po::value<string>(&opt_fixed_action_sequence), "Pass fixed action sequence that provides actions (default is \"\" for no such sequence")
 
       // features
-      ("features", po::value<int>(&opt_screen_features)->default_value(0), "Set feature set: 0=RAM, 1=basic, 2=basic+B-PROS, 3=basic+B-PROS+B-PROT (default is 0)")
-      ("frames-background-image", po::value<int>(&opt_frames_for_background_image)->default_value(100), "Set number of random frames to compute background image (default is 100 frames)")
+      ("features", po::value<int>(&opt_screen_features)->default_value(3), "Set feature set: 0=RAM, 1=basic, 2=basic+B-PROS, 3=basic+B-PROS+B-PROT (default is 3)")
+      ("frames-background-image", po::value<int>(&opt_frames_for_background_image)->default_value(100), "Set number of random frames to compute background image (default is 100)")
 
       // options for online execution
       ("initial-random-noops", po::value<int>(&opt_initial_random_noops)->default_value(30), "Set max number of initial noops, actual # is sampled (default is 30)")
@@ -289,14 +293,14 @@ int main(int argc, char **argv) {
       ("prefix-length-to-execute", po::value<float>(&opt_prefix_length_to_execute)->default_value(0.0), "Set \% of prefix to execute (default is 0 = execute until positive reward)")
 
       // planners
-      ("planner", po::value<string>(&opt_planner_str)->default_value(string("rollout")), "Set planner, either 'rollout' or 'bfs'")
+      ("planner", po::value<string>(&opt_planner_str)->default_value(string("rollout")), "Set planner, either 'rollout' or 'bfs' (default is 'rollout')")
       ("novelty-subtables", "Turn on use of novelty subtables (default is to use single table)")
       ("random-actions", "Use random action when there are no rewards in look-ahead tree (default is off)")
-      ("max-rep", po::value<int>(&opt_max_rep)->default_value(30), "Set max rep(etition) of screen features during lookahead (default is 30 frames)")
+      ("max-rep", po::value<int>(&opt_max_rep)->default_value(30), "Set max rep(etition) of screen features during lookahead (default is 30)")
       ("discount", po::value<float>(&opt_discount)->default_value(1.0), "Set discount factor for lookahead (default is 1.0)")
       ("alpha", po::value<float>(&opt_alpha)->default_value(1.0), "Set alpha value for lookahead (default is 1.0)")
       ("use-alpha-to-update-reward-for-death", "Assign a big negative reward, depending on alpha's value, for deaths (default is off)")
-      ("nodes-threshold", po::value<int>(&opt_nodes_threshold)->default_value(50000), "Set threshold for expanding look-ahead tree (default is 50,000 nodes)")
+      ("nodes-threshold", po::value<int>(&opt_nodes_threshold)->default_value(50000), "Set threshold in #nodes for expanding look-ahead tree (default is 50k)")
 
       // options for rollout planner
       ("max-depth", po::value<int>(&opt_max_depth)->default_value(1500), "Set max depth for lookahead (default is 1500)")

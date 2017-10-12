@@ -1,6 +1,0 @@
-rollout 05 0.50 1 0 --nodisplay ALE-Atari-Width/group_1/amidar.bin
-rollout 05 0.50 1 0 --nodisplay ALE-Atari-Width/group_1/assault.bin
-rollout 05 0.50 1 0 --nodisplay ALE-Atari-Width/group_1/bank_heist.bin
-rollout 05 0.50 1 0 --nodisplay ALE-Atari-Width/group_1/centipede.bin
-rollout 05 0.50 1 0 --nodisplay ALE-Atari-Width/group_1/double_dunk.bin
-rollout 05 0.50 1 0 --nodisplay ALE-Atari-Width/group_1/gopher.bin

@@ -1,5 +1,0 @@
-rollout 05 2.0 2 1 --nodisplay,--novelty-subtables ALE-Atari-Width/group_2/skiing.bin
-rollout 05 2.0 2 1 --nodisplay,--novelty-subtables ALE-Atari-Width/group_2/tennis.bin
-rollout 05 2.0 2 1 --nodisplay,--novelty-subtables ALE-Atari-Width/group_2/tutankham.bin
-rollout 05 2.0 2 1 --nodisplay,--novelty-subtables ALE-Atari-Width/group_2/video_pinball.bin
-rollout 05 2.0 2 1 --nodisplay,--novelty-subtables ALE-Atari-Width/group_2/wizard_of_wor.bin

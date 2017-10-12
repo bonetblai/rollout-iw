@@ -1,0 +1,15 @@
+rollout 10 16.0 3 0 --execute-single-action,--nodisplay openai-gym/group_3/pong.bin
+rollout 10 16.0 3 0 --execute-single-action,--nodisplay openai-gym/group_3/private_eye.bin
+rollout 10 16.0 3 0 --execute-single-action,--nodisplay openai-gym/group_3/qbert.bin
+rollout 10 16.0 3 0 --execute-single-action,--nodisplay openai-gym/group_3/riverraid.bin
+rollout 10 16.0 3 0 --execute-single-action,--nodisplay openai-gym/group_3/road_runner.bin
+rollout 10 16.0 3 0 --execute-single-action,--nodisplay openai-gym/group_3/robotank.bin
+rollout 10 16.0 3 0 --execute-single-action,--nodisplay openai-gym/group_3/seaquest.bin
+rollout 10 16.0 3 0 --execute-single-action,--nodisplay openai-gym/group_3/solaris.bin
+rollout 10 16.0 3 0 --execute-single-action,--nodisplay openai-gym/group_3/space_invaders.bin
+rollout 10 16.0 3 0 --execute-single-action,--nodisplay openai-gym/group_3/star_gunner.bin
+rollout 10 16.0 3 0 --execute-single-action,--nodisplay openai-gym/group_3/time_pilot.bin
+rollout 10 16.0 3 0 --execute-single-action,--nodisplay openai-gym/group_3/up_n_down.bin
+rollout 10 16.0 3 0 --execute-single-action,--nodisplay openai-gym/group_3/venture.bin
+rollout 10 16.0 3 0 --execute-single-action,--nodisplay openai-gym/group_3/yars_revenge.bin
+rollout 10 16.0 3 0 --execute-single-action,--nodisplay openai-gym/group_3/zaxxon.bin

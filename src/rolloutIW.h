@@ -164,14 +164,7 @@ struct RolloutIW : SimPlanner {
             root->parent_->solved_ = false;
             while( !root->solved_ && (simulator_calls_ < simulator_budget_) && (elapsed_time < time_budget_) ) {
                 if( debug_ ) logos_ << '.' << std::flush;
-                rollout(prefix,
-                        root,
-                        screen_features_,
-                        max_depth_,
-                        max_rep_,
-                        alpha_,
-                        use_alpha_to_update_reward_for_death_,
-                        novelty_table_map);
+                rollout(prefix, root, novelty_table_map);
                 elapsed_time = Utils::read_time_in_seconds() - start_time;
             }
             if( debug_ ) logos_ << std::endl;
@@ -241,14 +234,7 @@ struct RolloutIW : SimPlanner {
         return root;
     }
 
-    void rollout(const std::vector<Action> &prefix,
-                 Node *root,
-                 int screen_features,
-                 size_t max_depth,
-                 size_t max_rep,
-                 float alpha,
-                 bool use_alpha_to_update_reward_for_death,
-                 std::map<int, std::vector<int> > &novelty_table_map) const {
+    void rollout(const std::vector<Action> &prefix, Node *root, std::map<int, std::vector<int> > &novelty_table_map) const {
         ++num_rollouts_;
 
         // apply prefix
@@ -256,7 +242,7 @@ struct RolloutIW : SimPlanner {
 
         // update root info
         if( root->is_info_valid_ != 2 )
-            update_info(root, screen_features, alpha, use_alpha_to_update_reward_for_death);
+            update_info(root, screen_features_, alpha_, use_alpha_to_update_reward_for_death_);
 
         // perform rollout
         Node *node = root;
@@ -272,7 +258,7 @@ struct RolloutIW : SimPlanner {
 
             // update info
             if( node->is_info_valid_ != 2 )
-                update_info(node, screen_features, alpha, use_alpha_to_update_reward_for_death);
+                update_info(node, screen_features_, alpha_, use_alpha_to_update_reward_for_death_);
 
             // report non-zero rewards
             if( node->reward_ > 0 ) {
@@ -291,7 +277,7 @@ struct RolloutIW : SimPlanner {
             }
 
             // verify repetitions of feature atoms (screen mode)
-            if( node->frame_rep_ > max_rep ) {
+            if( node->frame_rep_ > max_rep_ ) {
                 node->visited_ = true;
                 assert((node->num_children_ == 0) && (node->first_child_ == nullptr));
                 node->solve_and_backpropagate_label();
@@ -309,7 +295,7 @@ struct RolloutIW : SimPlanner {
             assert((atom >= 0) && (atom < novelty_table.size()));
 
             // five cases
-            if( node->depth_ > max_depth ) {
+            if( node->depth_ > max_depth_ ) {
                 node->visited_ = true;
                 assert((node->num_children_ == 0) && (node->first_child_ == nullptr));
                 node->solve_and_backpropagate_label();

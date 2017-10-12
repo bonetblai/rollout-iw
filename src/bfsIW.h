@@ -157,15 +157,7 @@ struct BfsIW : SimPlanner {
 
         // construct/extend lookahead tree
         if( root->num_nodes() < nodes_threshold_ ) {
-            bfs(prefix,
-                root,
-                simulator_budget_,
-                time_budget_,
-                screen_features_,
-                max_rep_,
-                alpha_,
-                use_alpha_to_update_reward_for_death_,
-                novelty_table_map);
+            bfs(prefix, root, novelty_table_map);
         }
 
         // if nothing was expanded, return random actions (it can only happen with small time budget)
@@ -243,15 +235,7 @@ struct BfsIW : SimPlanner {
         }
     };
 
-    void bfs(const std::vector<Action> &prefix,
-             Node *root,
-             int simulator_budget,
-             float time_budget,
-             int screen_features,
-             size_t max_rep,
-             float alpha,
-             bool use_alpha_to_update_reward_for_death,
-             std::map<int, std::vector<int> > &novelty_table_map) const {
+    void bfs(const std::vector<Action> &prefix, Node *root, std::map<int, std::vector<int> > &novelty_table_map) const {
         // priority queue
         NodeComparator cmp(break_ties_using_rewards_);
         std::priority_queue<Node*, std::vector<Node*>, NodeComparator> q(cmp);
@@ -262,7 +246,7 @@ struct BfsIW : SimPlanner {
 
         // explore in breadth-first manner
         float start_time = Utils::read_time_in_seconds();
-        while( !q.empty() && (simulator_calls_ < simulator_budget) && (Utils::read_time_in_seconds() - start_time < time_budget) ) {
+        while( !q.empty() && (simulator_calls_ < simulator_budget_) && (Utils::read_time_in_seconds() - start_time < time_budget_) ) {
             Node *node = q.top();
             q.pop();
 
@@ -273,7 +257,7 @@ struct BfsIW : SimPlanner {
             assert((node->num_children_ == 0) && (node->first_child_ == nullptr));
             assert(node->visited_ || (node->is_info_valid_ != 2));
             if( node->is_info_valid_ != 2 ) {
-                update_info(node, screen_features, alpha, use_alpha_to_update_reward_for_death);
+                update_info(node, screen_features_, alpha_, use_alpha_to_update_reward_for_death_);
                 assert((node->num_children_ == 0) && (node->first_child_ == nullptr));
                 node->visited_ = true;
             }
@@ -285,7 +269,7 @@ struct BfsIW : SimPlanner {
             }
 
             // verify max repetitions of feature atoms (screen mode)
-            if( node->frame_rep_ > max_rep ) {
+            if( node->frame_rep_ > max_rep_ ) {
                 if( debug_ ) logos_ << "r" << node->frame_rep_ << "," << std::flush;
                 continue;
             }
@@ -315,7 +299,7 @@ struct BfsIW : SimPlanner {
                 node->expand(action_set_, false);
                 expand_time_ += Utils::read_time_in_seconds() - start_time;
             } else {
-                assert((node->parent_ != nullptr) && (screen_features > 0));
+                assert((node->parent_ != nullptr) && (screen_features_ > 0));
                 node->expand(node->action_);
             }
             assert((node->num_children_ > 0) && (node->first_child_ != nullptr));

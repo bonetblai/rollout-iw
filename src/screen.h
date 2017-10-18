@@ -252,7 +252,7 @@ struct MyALEScreen {
 
     // basic features
     static bool is_basic_feature(int pack) {
-        return (pack >= 0) && (pack < num_basic_features_);
+        return (pack >= 0) && (pack < int(num_basic_features_));
     }
     static int pack_basic_feature(size_t c, size_t r, pixel_t p) {
         assert((c < 16) && (r < 14));
@@ -274,7 +274,7 @@ struct MyALEScreen {
 
     // B-PROS features
     static bool is_bpros_feature(int pack) {
-        return (pack >= num_basic_features_) && (pack < num_basic_features_ + num_bpros_features_);
+        return (pack >= int(num_basic_features_)) && (pack < int(num_basic_features_ + num_bpros_features_));
     }
     static int pack_bpros_feature(int dc, int dr, pixel_t p1, pixel_t p2) {
         assert((-15 <= dc) && (dc <= 15));
@@ -286,7 +286,7 @@ struct MyALEScreen {
         if( p1 < p2 ) {
             pack = ((15 + dc) * 27 + (13 + dr)) * 128 * 127 / 2;
             pack += p1 * 127 - p1 * (1 + p1) / 2 + p2 - 1;
-            assert((pack >= 0) && (pack < num_bpros_features_t0_));
+            assert((pack >= 0) && (pack < int(num_bpros_features_t0_)));
         } else if( (dc != 0) || (dr != 0) ) {
             assert(p1 == p2);
             if( (dc < 0) || ((dc == 0) && (dr < 0)) ) {
@@ -303,12 +303,12 @@ struct MyALEScreen {
                 pack = 15 * 27 * 128 + (dr - 1) * 128 + p1;
             }
 
-            assert((pack >= 0) && (pack < num_bpros_features_t1_));
+            assert((pack >= 0) && (pack < int(num_bpros_features_t1_)));
             pack += num_bpros_features_t0_;
         } else {
             assert((p1 == p2) && (dc == 0) && (dr == 0));
             pack = p1;
-            assert((pack >= 0) && (pack < num_bpros_features_t2_));
+            assert((pack >= 0) && (pack < int(num_bpros_features_t2_)));
             pack += num_bpros_features_t0_ + num_bpros_features_t1_;
         }
         pack += num_basic_features_;
@@ -332,12 +332,12 @@ struct MyALEScreen {
 
     // B-PROT features
     static bool is_bprot_feature(int pack) {
-        return (pack >= num_basic_features_ + num_bpros_features_) && (pack < num_basic_features_ + num_bpros_features_ + num_bprot_features_);
+        return (pack >= int(num_basic_features_ + num_bpros_features_)) && (pack < int(num_basic_features_ + num_bpros_features_ + num_bprot_features_));
     }
     static int pack_bprot_feature(int dc, int dr, pixel_t p1, pixel_t p2) {
         assert((-15 <= dc) && (dc <= 15));
         assert((-13 <= dr) && (dr <= 13));
-        assert((((15 + dc) * 27 + (13 + dr)) * 128 + p1) * 128 + p2 < num_bprot_features_);
+        assert((((15 + dc) * 27 + (13 + dr)) * 128 + p1) * 128 + p2 < int(num_bprot_features_));
         return num_basic_features_ + num_bpros_features_ + (((15 + dc) * 27 + (13 + dr)) * 128 + p1) * 128 + p2;
     }
     static int pack_bprot_feature(const bprot_feature_t &cf) {

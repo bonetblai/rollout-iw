@@ -117,9 +117,9 @@ void run_episode(ALEInterface &env,
                 int target_branch_length = int(branch.size() * prefix_length_to_execute);
                 if( target_branch_length == 0 ) target_branch_length = 1;
                 assert(target_branch_length > 0);
-                while( branch.size() > target_branch_length )
+                while( int(branch.size()) > target_branch_length )
                     branch.pop_back();
-                assert(target_branch_length == branch.size());
+                assert(target_branch_length == int(branch.size()));
             } else if( execute_single_action ) {
                 assert(branch.size() >= 1);
                 while( branch.size() > 1 )
@@ -294,7 +294,7 @@ int main(int argc, char **argv) {
       ("novelty-subtables", "Turn on use of novelty subtables (default is to use single table)")
       ("random-actions", "Use random action when there are no rewards in look-ahead tree (default is off)")
       ("max-rep", po::value<int>(&opt_max_rep)->default_value(30), "Set max rep(etition) of screen features during lookahead (default is 30)")
-      ("discount", po::value<float>(&opt_discount)->default_value(1.0), "Set discount factor for lookahead (default is 1.0)")
+      ("discount", po::value<float>(&opt_discount)->default_value(0.95), "Set discount factor for lookahead (default is 0.95)")
       ("alpha", po::value<float>(&opt_alpha)->default_value(1.0), "Set alpha value for lookahead (default is 1.0)")
       ("use-alpha-to-update-reward-for-death", "Assign a big negative reward, depending on alpha's value, for deaths (default is off)")
       ("nodes-threshold", po::value<int>(&opt_nodes_threshold)->default_value(50000), "Set threshold in #nodes for expanding look-ahead tree (default is 50k)")
@@ -445,7 +445,7 @@ int main(int argc, char **argv) {
     int initial_noops = lrand48() % opt_initial_random_noops;
 
     // play
-    for( size_t k = 0; k < opt_episodes; ++k ) {
+    for( int k = 0; k < opt_episodes; ++k ) {
         vector<Action> prefix;
         float start_time = Utils::read_time_in_seconds();
         run_episode(env, *logos, *planner, initial_noops, opt_lookahead_caching, opt_prefix_length_to_execute, opt_execute_single_action, opt_frameskip, opt_max_execution_length_in_frames, prefix);

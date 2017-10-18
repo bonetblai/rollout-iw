@@ -136,14 +136,14 @@ struct BfsIW : SimPlanner {
                 root_actions.insert(child->action_);
 
             // complete children
-            assert(root->num_children_ <= action_set_.size());
-            if( root->num_children_ < action_set_.size() ) {
+            assert(root->num_children_ <= int(action_set_.size()));
+            if( root->num_children_ < int(action_set_.size()) ) {
                 for( size_t k = 0; k < action_set_.size(); ++k ) {
                     if( root_actions.find(action_set_[k]) == root_actions.end() )
                         root->expand(action_set_[k]);
                 }
             }
-            assert(root->num_children_ == action_set_.size());
+            assert(root->num_children_ == int(action_set_.size()));
         } else {
             // make sure this root node isn't marked as frame rep
             root->parent_->feature_atoms_.clear();
@@ -156,7 +156,7 @@ struct BfsIW : SimPlanner {
         root->recompute_path_rewards(root);
 
         // construct/extend lookahead tree
-        if( root->num_nodes() < nodes_threshold_ ) {
+        if( int(root->num_nodes()) < nodes_threshold_ ) {
             bfs(prefix, root, novelty_table_map);
         }
 
@@ -246,7 +246,7 @@ struct BfsIW : SimPlanner {
 
         // explore in breadth-first manner
         float start_time = Utils::read_time_in_seconds();
-        while( !q.empty() && (simulator_calls_ < simulator_budget_) && (Utils::read_time_in_seconds() - start_time < time_budget_) ) {
+        while( !q.empty() && (int(simulator_calls_) < simulator_budget_) && (Utils::read_time_in_seconds() - start_time < time_budget_) ) {
             Node *node = q.top();
             q.pop();
 
@@ -269,7 +269,7 @@ struct BfsIW : SimPlanner {
             }
 
             // verify max repetitions of feature atoms (screen mode)
-            if( node->frame_rep_ > max_rep_ ) {
+            if( node->frame_rep_ > int(max_rep_) ) {
                 if( debug_ ) logos_ << "r" << node->frame_rep_ << "," << std::flush;
                 continue;
             }
@@ -279,7 +279,7 @@ struct BfsIW : SimPlanner {
                 // calculate novelty
                 std::vector<int> &novelty_table = get_novelty_table(node, novelty_table_map, novelty_subtables_);
                 int atom = get_novel_atom(node->depth_, node->feature_atoms_, novelty_table);
-                assert((atom >= 0) && (atom < novelty_table.size()));
+                assert((atom >= 0) && (atom < int(novelty_table.size())));
 
                 // prune node using novelty
                 if( novelty_table[atom] <= node->depth_ ) {

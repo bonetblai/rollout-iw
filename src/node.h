@@ -79,7 +79,7 @@ class Node {
         for( size_t k = 0; k < actions.size(); ++k )
             expand(actions[k]);
         //if( random_shuffle ) std::random_shuffle(children_.begin(), children_.end()); // CHECK: missing
-        assert(num_children_ == actions.size());
+        assert(num_children_ == int(actions.size()));
     }
 
     void clear_cached_states() {
@@ -270,8 +270,8 @@ class Node {
             size_t max_height = 0;
             size_t num_best_children = 0;
             for( Node *child = first_child_; child != nullptr; child = child->sibling_ ) {
-                if( (child->qvalue(discount) == 0) && (child->height_ >= max_height) ) {
-                    if( child->height_ > max_height ) {
+                if( (child->qvalue(discount) == 0) && (child->height_ >= int(max_height)) ) {
+                    if( child->height_ > int(max_height) ) {
                         max_height = child->height_;
                         num_best_children = 0;
                     }
@@ -281,7 +281,7 @@ class Node {
             assert(num_best_children > 0);
             size_t index_best_child = lrand48() % num_best_children;
             for( Node *child = first_child_; child != nullptr; child = child->sibling_ ) {
-                if( (child->qvalue(discount) == 0) && (child->height_ == max_height) ) {
+                if( (child->qvalue(discount) == 0) && (child->height_ == int(max_height)) ) {
                     if( index_best_child == 0 ) {
                         branch.push_back(child->action_);
                         child->longest_zero_value_branch(discount, branch);

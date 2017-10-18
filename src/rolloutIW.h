@@ -136,14 +136,14 @@ struct RolloutIW : SimPlanner {
                 root_actions.insert(child->action_);
 
             // complete children
-            assert(root->num_children_ <= action_set_.size());
-            if( root->num_children_ < action_set_.size() ) {
+            assert(root->num_children_ <= int(action_set_.size()));
+            if( root->num_children_ < int(action_set_.size()) ) {
                 for( size_t k = 0; k < action_set_.size(); ++k ) {
                     if( root_actions.find(action_set_[k]) == root_actions.end() )
                         root->expand(action_set_[k]);
                 }
             }
-            assert(root->num_children_ == action_set_.size());
+            assert(root->num_children_ == int(action_set_.size()));
         } else {
             // make sure this root node isn't marked as frame rep
             root->parent_->feature_atoms_.clear();
@@ -156,13 +156,13 @@ struct RolloutIW : SimPlanner {
         root->recompute_path_rewards(root);
 
         // construct/extend lookahead tree
-        if( root->num_nodes() < nodes_threshold_ ) {
+        if( int(root->num_nodes()) < nodes_threshold_ ) {
             float elapsed_time = Utils::read_time_in_seconds() - start_time;
 
             // clear solved labels
             clear_solved_labels(root);
             root->parent_->solved_ = false;
-            while( !root->solved_ && (simulator_calls_ < simulator_budget_) && (elapsed_time < time_budget_) ) {
+            while( !root->solved_ && (int(simulator_calls_) < simulator_budget_) && (elapsed_time < time_budget_) ) {
                 if( debug_ ) logos_ << '.' << std::flush;
                 rollout(prefix, root, novelty_table_map);
                 elapsed_time = Utils::read_time_in_seconds() - start_time;
@@ -277,7 +277,7 @@ struct RolloutIW : SimPlanner {
             }
 
             // verify repetitions of feature atoms (screen mode)
-            if( node->frame_rep_ > max_rep_ ) {
+            if( node->frame_rep_ > int(max_rep_) ) {
                 node->visited_ = true;
                 assert((node->num_children_ == 0) && (node->first_child_ == nullptr));
                 node->solve_and_backpropagate_label();
@@ -292,10 +292,10 @@ struct RolloutIW : SimPlanner {
             // calculate novelty
             std::vector<int> &novelty_table = get_novelty_table(node, novelty_table_map, novelty_subtables_);
             int atom = get_novel_atom(node->depth_, node->feature_atoms_, novelty_table);
-            assert((atom >= 0) && (atom < novelty_table.size()));
+            assert((atom >= 0) && (atom < int(novelty_table.size())));
 
             // five cases
-            if( node->depth_ > max_depth_ ) {
+            if( node->depth_ > int(max_depth_) ) {
                 node->visited_ = true;
                 assert((node->num_children_ == 0) && (node->first_child_ == nullptr));
                 node->solve_and_backpropagate_label();

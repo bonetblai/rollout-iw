@@ -52,12 +52,12 @@ struct SimPlanner : Planner {
         num_tracked_atoms_(num_tracked_atoms),
         debug_(debug) {
         //static_assert(std::numeric_limits<float>::is_iec559, "IEEE 754 required");
-        assert(sim_.getInt("frame_skip") == frameskip_);
+        assert(sim_.getInt("frame_skip") == int(frameskip_));
         if( use_minimal_action_set_ )
             action_set_ = sim_.getMinimalActionSet();
         else
             action_set_ = sim_.getLegalActionSet();
-        assert(sim_.getInt("frame_skip") == frameskip_);
+        assert(sim_.getInt("frame_skip") == int(frameskip_));
         reset_game(sim_);
         get_state(sim_, initial_sim_state_);
     }
@@ -246,8 +246,8 @@ struct SimPlanner : Planner {
         size_t first_index = 0;
         size_t number_updated_entries = 0;
         for( size_t k = first_index; k < feature_atoms.size(); ++k ) {
-            assert((feature_atoms[k] >= 0) && (feature_atoms[k] < novelty_table.size()));
-            if( depth < novelty_table[feature_atoms[k]] ) {
+            assert((feature_atoms[k] >= 0) && (feature_atoms[k] < int(novelty_table.size())));
+            if( int(depth) < novelty_table[feature_atoms[k]] ) {
                 novelty_table[feature_atoms[k]] = depth;
                 ++number_updated_entries;
             }
@@ -259,20 +259,20 @@ struct SimPlanner : Planner {
     int get_novel_atom(size_t depth, const std::vector<int> &feature_atoms, const std::vector<int> &novelty_table) const {
         float start_time = Utils::read_time_in_seconds();
         for( size_t k = 0; k < feature_atoms.size(); ++k ) {
-            assert(feature_atoms[k] < novelty_table.size());
-            if( novelty_table[feature_atoms[k]] > depth ) {
+            assert(feature_atoms[k] < int(novelty_table.size()));
+            if( novelty_table[feature_atoms[k]] > int(depth) ) {
                 novel_atom_time_ += Utils::read_time_in_seconds() - start_time;
                 return feature_atoms[k];
             }
         }
         for( size_t k = 0; k < feature_atoms.size(); ++k ) {
-            if( novelty_table[feature_atoms[k]] == depth ) {
+            if( novelty_table[feature_atoms[k]] == int(depth) ) {
                 novel_atom_time_ += Utils::read_time_in_seconds() - start_time;
                 return feature_atoms[k];
             }
         }
         novel_atom_time_ += Utils::read_time_in_seconds() - start_time;
-        assert(novelty_table[feature_atoms[0]] < depth);
+        assert(novelty_table[feature_atoms[0]] < int(depth));
         return feature_atoms[0];
     }
 

@@ -211,7 +211,7 @@ int main(int argc, char **argv) {
     // general options
     int opt_random_seed;
     bool opt_debug = false;
-    int opt_ale_logger_mode = 3;
+    int opt_ale_logger_mode;
     int opt_frameskip;
     bool opt_display = true;
     bool opt_sound = false;
@@ -264,7 +264,7 @@ int main(int argc, char **argv) {
       ("help", "Help message")
       ("seed", po::value<int>(&opt_random_seed)->default_value(0), "Set random seed (default is 0)")
       ("debug", "Turn on debug (default is off)")
-      ("ale-logger-mode", "Change ALE logger mode: 0=Info, 1=Warning, 2=Error, 3=Silent (default is 3)")
+      ("ale-logger-mode", po::value<int>(&opt_ale_logger_mode)->default_value(2), "Change ALE logger mode: 0=Info, 1=Warning, 2=Error, 3=Silent (default is 2)")
       ("frameskip", po::value<int>(&opt_frameskip)->default_value(15), "Set frame skip rate (default is 15)")
       ("nodisplay", "Turn off display (default is display)")
       ("sound", "Turn on sound (default is no sound)")

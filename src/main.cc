@@ -209,13 +209,14 @@ int main(int argc, char **argv) {
     string opt_planner_str;
 
     // general options
-    bool opt_debug = false;
-    bool opt_display = true;
-    int opt_frameskip;
     int opt_random_seed;
+    bool opt_debug = false;
+    int opt_ale_logger_mode = 3;
+    int opt_frameskip;
+    bool opt_display = true;
+    bool opt_sound = false;
     string opt_rec_dir;
     string opt_rec_sound_filename;
-    bool opt_sound = false;
     bool opt_use_minimal_action_set = false;
 
     // episodes and execution length
@@ -263,6 +264,7 @@ int main(int argc, char **argv) {
       ("help", "Help message")
       ("seed", po::value<int>(&opt_random_seed)->default_value(0), "Set random seed (default is 0)")
       ("debug", "Turn on debug (default is off)")
+      ("ale-logger-mode", "Change ALE logger mode: 0=Info, 1=Warning, 2=Error, 3=Silent (default is 3)")
       ("frameskip", po::value<int>(&opt_frameskip)->default_value(15), "Set frame skip rate (default is 15)")
       ("nodisplay", "Turn off display (default is display)")
       ("sound", "Turn on sound (default is no sound)")
@@ -346,8 +348,17 @@ int main(int argc, char **argv) {
     // set random seed for lrand48() and drand48()
     srand48(opt_random_seed);
 
+    // set logger mode for ALE
+    ale::Logger::mode ale_logger_mode = ale::Logger::Silent;
+    if( opt_ale_logger_mode == 0 )
+        ale_logger_mode = ale::Logger::Info;
+    else if( opt_ale_logger_mode == 1 )
+        ale_logger_mode = ale::Logger::Warning;
+    else if( opt_ale_logger_mode == 2 )
+        ale_logger_mode = ale::Logger::Error;
+
     // create ALEs
-    ALEInterface env, sim;
+    ALEInterface env(ale_logger_mode), sim(ale_logger_mode);
 
     // get/set desired settings
     env.setInt("frame_skip", opt_frameskip);

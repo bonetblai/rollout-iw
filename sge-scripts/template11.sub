@@ -37,7 +37,7 @@ output_file=$output_path/output.riw.alg=${algorithm}.fs=${frameskip}.b=${time_bu
 mkdir -p $output_path
 
 if [ ! -f "$output_file" ]; then
-    ./experiment.sh $algorithm $frameskip $time_budget $features $novelty_subtables $options $rom $output_file
+    ./experiment11.sh $algorithm $frameskip $time_budget $features $novelty_subtables $options $rom $output_file
 else
     echo "Doing nothing since file $output_file exists!"
 fi

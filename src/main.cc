@@ -224,7 +224,7 @@ int main(int argc, char **argv) {
     int opt_max_execution_length_in_frames;
 
     // simulate previous execution
-    string opt_fixed_action_sequence("none");
+    string opt_fixed_action_sequence;
 
     // features
     int opt_screen_features;
@@ -277,7 +277,7 @@ int main(int argc, char **argv) {
       ("max-execution-length", po::value<int>(&opt_max_execution_length_in_frames)->default_value(18000), "Set max number of frames in single execution (default is 18k frames)")
 
       // simulate previous execution
-      ("fixed-action-sequence", po::value<string>(&opt_fixed_action_sequence), "Pass fixed action sequence that provides actions (default is \"none\" for no such sequence")
+      ("fixed-action-sequence", po::value<string>(&opt_fixed_action_sequence)->default_value("none"), "Pass fixed action sequence that provides actions (default is \"none\" for no such sequence")
 
       // features
       ("features", po::value<int>(&opt_screen_features)->default_value(3), "Set feature set: 0=RAM, 1=basic, 2=basic+B-PROS, 3=basic+B-PROS+B-PROT (default is 3)")
@@ -321,7 +321,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    // set default values
+    // set values for boolean options
     opt_debug = opt_varmap.count("debug");
     opt_display = !opt_varmap.count("nodisplay");
     opt_sound = opt_varmap.count("sound");

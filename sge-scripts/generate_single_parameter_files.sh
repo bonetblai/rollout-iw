@@ -11,8 +11,9 @@ roms=$8
 
 export IW_ROOT=$HOME/software/github/rollout-iw
 
+# each experiment is run 5 times, averages are then reported
 cat $IW_ROOT/atari-roms/$roms | \
-  awk '{ printf "%s %s %s %s %s %s %s/%s\n", algorithm, frameskip, time_budget, features, ns, other, roms_path, $1;
+  awk '{ for( i = 0; i < 5; ++i ) printf "%s %s %s %s %s %s %s/%s\n", algorithm, frameskip, time_budget, features, ns, other, roms_path, $1;
        }' \
        algorithm=$algorithm \
        frameskip=$frameskip \

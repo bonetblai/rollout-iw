@@ -19,7 +19,7 @@ options=${raw_options//,/ }
 $IW_ROOT/src/rom_planner \
   --seed $RANDOM \
   --lookahead-caching 2 \
-  --alpha 1000 \
+  --alpha 50000 \
   --use-alpha-to-update-reward-for-death \
   --break-ties-using-rewards \
   --planner $algorithm \

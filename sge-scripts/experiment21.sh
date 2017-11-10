@@ -20,7 +20,7 @@ $IW_ROOT/src/rom_planner \
   --seed $RANDOM \
   --lookahead-caching 2 \
   --random-actions \
-  --alpha 1000 \
+  --alpha 50000 \
   --use-alpha-to-update-reward-for-death \
   --break-ties-using-rewards \
   --planner $algorithm \

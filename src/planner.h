@@ -3,7 +3,6 @@
 #ifndef PLANNER_H
 #define PLANNER_H
 
-#include <iostream>
 #include <deque>
 #include <string>
 #include <vector>
@@ -11,8 +10,7 @@
 #include "node.h"
 
 struct Planner {
-    std::ostream &logos_;
-    Planner(std::ostream &logos) : logos_(logos) { }
+    Planner() { }
     virtual ~Planner() { }
     virtual std::string name() const = 0;
     virtual float simulator_time() const = 0;
@@ -33,8 +31,8 @@ struct RandomPlanner : Planner {
     ActionVect action_set_;
     size_t action_set_size_;
 
-    RandomPlanner(std::ostream &logos, ALEInterface &env, bool use_minimal_action_set)
-      : Planner(logos),
+    RandomPlanner(ALEInterface &env, bool use_minimal_action_set)
+      : Planner(),
         use_minimal_action_set_(use_minimal_action_set) {
         if( use_minimal_action_set_ )
             action_set_ = env.getMinimalActionSet();
@@ -81,8 +79,8 @@ struct RandomPlanner : Planner {
 struct FixedPlanner : public Planner {
     mutable std::deque<Action> actions_;
 
-    FixedPlanner(std::ostream &logos, const std::vector<Action> &actions)
-      : Planner(logos) {
+    FixedPlanner(const std::vector<Action> &actions)
+      : Planner() {
         actions_ = std::deque<Action>(actions.begin(), actions.end());
     }
     virtual ~FixedPlanner() { }

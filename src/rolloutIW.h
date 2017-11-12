@@ -4,12 +4,12 @@
 #define ROLLOUT_IW_H
 
 #include <cassert>
-#include <iostream>
 #include <map>
 #include <string>
 #include <vector>
 
 #include "sim_planner.h"
+#include "logger.h"
 
 struct RolloutIW : SimPlanner {
     const int screen_features_;
@@ -22,7 +22,6 @@ struct RolloutIW : SimPlanner {
     const bool use_alpha_to_update_reward_for_death_;
     const int nodes_threshold_;
     const size_t max_depth_;
-    const bool debug_;
 
     mutable size_t num_rollouts_;
     mutable size_t num_expansions_;
@@ -32,8 +31,7 @@ struct RolloutIW : SimPlanner {
     mutable size_t root_height_;
     mutable bool random_decision_;
 
-    RolloutIW(std::ostream &logos,
-              ALEInterface &sim,
+    RolloutIW(ALEInterface &sim,
               size_t frameskip,
               bool use_minimal_action_set,
               size_t num_tracked_atoms,
@@ -47,9 +45,8 @@ struct RolloutIW : SimPlanner {
               float alpha,
               bool use_alpha_to_update_reward_for_death,
               int nodes_threshold,
-              size_t max_depth,
-              bool debug = false)
-      : SimPlanner(logos, sim, frameskip, use_minimal_action_set, simulator_budget, num_tracked_atoms, debug),
+              size_t max_depth)
+      : SimPlanner(sim, frameskip, use_minimal_action_set, simulator_budget, num_tracked_atoms),
         screen_features_(screen_features),
         time_budget_(time_budget),
         novelty_subtables_(novelty_subtables),
@@ -59,8 +56,7 @@ struct RolloutIW : SimPlanner {
         alpha_(alpha),
         use_alpha_to_update_reward_for_death_(use_alpha_to_update_reward_for_death),
         nodes_threshold_(nodes_threshold),
-        max_depth_(max_depth),
-        debug_(debug) {
+        max_depth_(max_depth) {
     }
     virtual ~RolloutIW() { }
 
@@ -79,7 +75,6 @@ struct RolloutIW : SimPlanner {
           + ",use-alpha-to-update-reward-for-death=" + std::to_string(use_alpha_to_update_reward_for_death_)
           + ",nodes-threshold=" + std::to_string(nodes_threshold_)
           + ",max-depth=" + std::to_string(max_depth_)
-          + ",debug=" + std::to_string(debug_)
           + ")";
     }
 
@@ -100,15 +95,15 @@ struct RolloutIW : SimPlanner {
                              std::deque<Action> &branch) const {
         assert(!prefix.empty());
 
-        logos_ << Utils::red() << "**** rollout: get branch ****" << Utils::normal() << std::endl;
-        logos_ << "prefix: sz=" << prefix.size() << ", actions=";
-        print_prefix(logos_, prefix);
-        logos_ << std::endl;
-        logos_ << "input:"
-               << " #nodes=" << (root == nullptr ? "na" : std::to_string(root->num_nodes()))
-               << ", #tips=" << (root == nullptr ? "na" : std::to_string(root->num_tip_nodes()))
-               << ", height=" << (root == nullptr ? "na" : std::to_string(root->height_))
-               << std::endl;
+        Logger::Info << "**** rollout: get branch ****" << std::endl;
+        Logger::Info << "prefix: sz=" << prefix.size() << ", actions=";
+        print_prefix(Logger::Info, prefix);
+        Logger::Continuation(Logger::Info) << std::endl;
+        Logger::Info << "input:"
+                     << " #nodes=" << (root == nullptr ? "na" : std::to_string(root->num_nodes()))
+                     << ", #tips=" << (root == nullptr ? "na" : std::to_string(root->num_tip_nodes()))
+                     << ", height=" << (root == nullptr ? "na" : std::to_string(root->height_))
+                     << std::endl;
 
         // reset stats and start timer
         reset_stats();
@@ -162,12 +157,13 @@ struct RolloutIW : SimPlanner {
             // clear solved labels
             clear_solved_labels(root);
             root->parent_->solved_ = false;
+            Logger::Debug << "";
             while( !root->solved_ && (int(simulator_calls_) < simulator_budget_) && (elapsed_time < time_budget_) ) {
-                if( debug_ ) logos_ << '.' << std::flush;
+                Logger::Continuation(Logger::Debug) << '.' << std::flush;
                 rollout(prefix, root, novelty_table_map);
                 elapsed_time = Utils::read_time_in_seconds() - start_time;
             }
-            if( debug_ ) logos_ << std::endl;
+            Logger::Continuation(Logger::Debug) << std::endl;
         }
 
         // if nothing was expanded, return random actions (it can only happen with small time budget)
@@ -185,17 +181,15 @@ struct RolloutIW : SimPlanner {
             root_height_ = root->height_;
 
             // print info about root node
-            if( true || debug_ ) {
-                logos_ << Utils::green()
-                       << "root:"
-                       << " solved=" << root->solved_
-                       << ", value=" << root->value_
-                       << ", imm-reward=" << root->reward_
-                       << ", children=[";
-                for( Node *child = root->first_child_; child != nullptr; child = child->sibling_ )
-                    logos_ << child->qvalue(discount_) << ":" << child->action_ << " ";
-                logos_ << "]" << Utils::normal() << std::endl;
-            }
+            Logger::Debug << Logger::green()
+                          << "root:"
+                          << " solved=" << root->solved_
+                          << ", value=" << root->value_
+                          << ", imm-reward=" << root->reward_
+                          << ", children=[";
+            for( Node *child = root->first_child_; child != nullptr; child = child->sibling_ )
+                Logger::Continuation(Logger::Debug) << child->qvalue(discount_) << ":" << child->action_ << " ";
+            Logger::Continuation(Logger::Debug) << "]" << Logger::normal() << std::endl;
 
             // compute branch
             if( root->value_ != 0 ) {
@@ -215,20 +209,17 @@ struct RolloutIW : SimPlanner {
 
             // print branch
             assert(!branch.empty());
-            if( true || debug_ ) {
-                logos_ << "branch:"
-                       << " value=" << root->value_
-                       << ", size=" << branch.size()
-                       << ", actions:"
-                       << std::endl;
-                //root->print_branch(logos_, branch);
-            }
+            Logger::Debug << "branch:"
+                          << " value=" << root->value_
+                          << ", size=" << branch.size()
+                          << ", actions:"
+                          << std::endl;
+            //root->print_branch(logos_, branch);
         }
 
         // stop timer and print stats
         total_time_ = Utils::read_time_in_seconds() - start_time;
-        if( true || debug_ )
-            print_stats(logos_, *root, novelty_table_map);
+        print_stats(Logger::Stats, *root, novelty_table_map);
 
         // return root node
         return root;
@@ -262,9 +253,9 @@ struct RolloutIW : SimPlanner {
 
             // report non-zero rewards
             if( node->reward_ > 0 ) {
-                if( debug_ ) logos_ << Utils::yellow() << "+" << Utils::normal() << std::flush;
+                Logger::Continuation(Logger::Debug) << Logger::yellow() << "+" << Logger::normal() << std::flush;
             } else if( node->reward_ < 0 ) {
-                if( debug_ ) logos_ << "-" << std::flush;
+                Logger::Continuation(Logger::Debug) << "-" << std::flush;
             }
 
             // if terminal, label as solved and terminate rollout
@@ -327,7 +318,7 @@ struct RolloutIW : SimPlanner {
                 ++num_cases_[2];
                 //node->remove_children();
                 node->reward_ = -std::numeric_limits<float>::infinity();
-                if( debug_ ) logos_ << "-" << std::flush;
+                Logger::Continuation(Logger::Debug) << "-" << std::flush;
                 node->solve_and_backpropagate_label();
                 //logos_ << "X" << node->depth_ << std::flush;
                 break;
@@ -411,39 +402,38 @@ struct RolloutIW : SimPlanner {
         random_decision_ = false;
     }
 
-    void print_stats(std::ostream &os, const Node &root, const std::map<int, std::vector<int> > &novelty_table_map) const {
-        os << Utils::red()
-           << "stats:"
-           << " #rollouts=" << num_rollouts_
-           << " #entries=[";
+    void print_stats(Logger::mode_t logger_mode, const Node &root, const std::map<int, std::vector<int> > &novelty_table_map) const {
+        logger_mode << "decision-stats:"
+                    << " #rollouts=" << num_rollouts_
+                    << " #entries=[";
 
         for( std::map<int, std::vector<int> >::const_iterator it = novelty_table_map.begin(); it != novelty_table_map.end(); ++it )
-            os << it->first << ":" << num_entries(it->second) << "/" << it->second.size() << ",";
+            Logger::Continuation(logger_mode) << it->first << ":" << num_entries(it->second) << "/" << it->second.size() << ",";
 
-        os << "]";
-
-        os << " #nodes=" << root.num_nodes()
-           << " #tips=" << root.num_tip_nodes()
-           << " height=[" << root.height_ << ":";
+        Logger::Continuation(logger_mode)
+          << "]"
+          << " #nodes=" << root.num_nodes()
+          << " #tips=" << root.num_tip_nodes()
+          << " height=[" << root.height_ << ":";
 
         for( Node *child = root.first_child_; child != nullptr; child = child->sibling_ )
-            os << child->height_ << ",";
+            Logger::Continuation(logger_mode) << child->height_ << ",";
 
-        os << "]";
-
-        os << " #expansions=" << num_expansions_
-           << " #cases=[" << num_cases_[0] << "," << num_cases_[1] << "," << num_cases_[2] << "," << num_cases_[3] << "]"
-           << " #sim=" << simulator_calls_
-           << " total-time=" << total_time_
-           << " simulator-time=" << sim_time_
-           << " reset-time=" << sim_reset_time_
-           << " get/set-state-time=" << sim_get_set_state_time_
-           << " expand-time=" << expand_time_
-           << " update-novelty-time=" << update_novelty_time_
-           << " get-atoms-calls=" << get_atoms_calls_
-           << " get-atoms-time=" << get_atoms_time_
-           << " novel-atom-time=" << novel_atom_time_
-           << Utils::normal() << std::endl;
+        Logger::Continuation(logger_mode)
+          << "]"
+          << " #expansions=" << num_expansions_
+          << " #cases=[" << num_cases_[0] << "," << num_cases_[1] << "," << num_cases_[2] << "," << num_cases_[3] << "]"
+          << " #sim=" << simulator_calls_
+          << " total-time=" << total_time_
+          << " simulator-time=" << sim_time_
+          << " reset-time=" << sim_reset_time_
+          << " get/set-state-time=" << sim_get_set_state_time_
+          << " expand-time=" << expand_time_
+          << " update-novelty-time=" << update_novelty_time_
+          << " get-atoms-calls=" << get_atoms_calls_
+          << " get-atoms-time=" << get_atoms_time_
+          << " novel-atom-time=" << novel_atom_time_
+          << std::endl;
     }
 };
 

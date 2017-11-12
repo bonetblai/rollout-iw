@@ -4,7 +4,6 @@
 #define BFS_IW_H
 
 #include <cassert>
-#include <iostream>
 #include <map>
 #include <queue>
 #include <set>
@@ -12,6 +11,7 @@
 #include <vector>
 
 #include "sim_planner.h"
+#include "logger.h"
 
 struct BfsIW : SimPlanner {
     const int screen_features_;
@@ -24,7 +24,6 @@ struct BfsIW : SimPlanner {
     const bool use_alpha_to_update_reward_for_death_;
     const int nodes_threshold_;
     const bool break_ties_using_rewards_;
-    const bool debug_;
 
     mutable size_t num_expansions_;
     mutable float total_time_;
@@ -32,8 +31,7 @@ struct BfsIW : SimPlanner {
     mutable size_t root_height_;
     mutable bool random_decision_;
 
-    BfsIW(std::ostream &logos,
-          ALEInterface &sim,
+    BfsIW(ALEInterface &sim,
           size_t frameskip,
           bool use_minimal_action_set,
           size_t num_tracked_atoms,
@@ -47,9 +45,8 @@ struct BfsIW : SimPlanner {
           float alpha,
           bool use_alpha_to_update_reward_for_death,
           int nodes_threshold,
-          bool break_ties_using_rewards,
-          bool debug = false)
-      : SimPlanner(logos, sim, frameskip, use_minimal_action_set, simulator_budget, num_tracked_atoms, debug),
+          bool break_ties_using_rewards)
+      : SimPlanner(sim, frameskip, use_minimal_action_set, simulator_budget, num_tracked_atoms),
         screen_features_(screen_features),
         time_budget_(time_budget),
         novelty_subtables_(novelty_subtables),
@@ -59,8 +56,7 @@ struct BfsIW : SimPlanner {
         alpha_(alpha),
         use_alpha_to_update_reward_for_death_(use_alpha_to_update_reward_for_death),
         nodes_threshold_(nodes_threshold),
-        break_ties_using_rewards_(break_ties_using_rewards),
-        debug_(debug) {
+        break_ties_using_rewards_(break_ties_using_rewards) {
     }
     virtual ~BfsIW() { }
 
@@ -79,7 +75,6 @@ struct BfsIW : SimPlanner {
           + ",use-alpha-to-update-reward-for-death=" + std::to_string(use_alpha_to_update_reward_for_death_)
           + ",nodes-threshold=" + std::to_string(nodes_threshold_)
           + ",break-ties-using-rewards=" + std::to_string(break_ties_using_rewards_)
-          + ",debug=" + std::to_string(debug_)
           + ")";
     }
 
@@ -100,15 +95,15 @@ struct BfsIW : SimPlanner {
                              std::deque<Action> &branch) const {
         assert(!prefix.empty());
 
-        logos_ << Utils::red() << "**** bfs: get branch ****" << Utils::normal() << std::endl;
-        logos_ << "prefix: sz=" << prefix.size() << ", actions=";
-        print_prefix(logos_, prefix);
-        logos_ << std::endl;
-        logos_ << "input:"
-               << " #nodes=" << (root == nullptr ? "na" : std::to_string(root->num_nodes()))
-               << ", #tips=" << (root == nullptr ? "na" : std::to_string(root->num_tip_nodes()))
-               << ", height=" << (root == nullptr ? "na" : std::to_string(root->height_))
-               << std::endl;
+        Logger::Info << "**** bfs: get branch ****" << std::endl;
+        Logger::Info << "prefix: sz=" << prefix.size() << ", actions=";
+        print_prefix(Logger::Info, prefix);
+        Logger::Continuation(Logger::Info) << std::endl;
+        Logger::Info << "input:"
+                     << " #nodes=" << (root == nullptr ? "na" : std::to_string(root->num_nodes()))
+                     << ", #tips=" << (root == nullptr ? "na" : std::to_string(root->num_tip_nodes()))
+                     << ", height=" << (root == nullptr ? "na" : std::to_string(root->height_))
+                     << std::endl;
 
         // reset stats and start timer
         reset_stats();
@@ -175,16 +170,14 @@ struct BfsIW : SimPlanner {
             root_height_ = root->height_;
 
             // print info about root node
-            if( true || debug_ ) {
-                logos_ << Utils::green()
-                       << "root:"
-                       << " value=" << root->value_
-                       << ", imm-reward=" << root->reward_
-                       << ", children=[";
-                for( Node *child = root->first_child_; child != nullptr; child = child->sibling_ )
-                    logos_ << child->value_ << ":" << child->action_ << " ";
-                logos_ << "]" << Utils::normal() << std::endl;
-            }
+            Logger::Debug << Logger::green()
+                          << "root:"
+                          << " value=" << root->value_
+                          << ", imm-reward=" << root->reward_
+                          << ", children=[";
+            for( Node *child = root->first_child_; child != nullptr; child = child->sibling_ )
+                Logger::Continuation(Logger::Debug) << child->value_ << ":" << child->action_ << " ";
+            Logger::Continuation(Logger::Debug) << "]" << Logger::normal() << std::endl;
 
             // compute branch
             if( root->value_ != 0 ) {
@@ -204,20 +197,17 @@ struct BfsIW : SimPlanner {
 
             // print branch
             assert(!branch.empty());
-            if( true || debug_ ) {
-                logos_ << "branch:"
-                       << " value=" << root->value_
-                       << ", size=" << branch.size()
-                       << ", actions:"
-                       << std::endl;
-                //root->print_branch(logos_, branch);
-            }
+            Logger::Debug << "branch:"
+                          << " value=" << root->value_
+                          << ", size=" << branch.size()
+                          << ", actions:"
+                          << std::endl;
+            //root->print_branch(logos_, branch);
         }
 
         // stop timer and print stats
         total_time_ = Utils::read_time_in_seconds() - start_time;
-        if( true || debug_ )
-            print_stats(logos_, *root, novelty_table_map);
+        print_stats(Logger::Stats, *root, novelty_table_map);
 
         // return root node
         return root;
@@ -242,7 +232,7 @@ struct BfsIW : SimPlanner {
 
         // add tip nodes to queue
         add_tip_nodes_to_queue(root, q);
-        logos_ << "queue: sz=" << q.size() << std::endl;
+        Logger::Info << "queue: sz=" << q.size() << std::endl;
 
         // explore in breadth-first manner
         float start_time = Utils::read_time_in_seconds();
@@ -251,7 +241,7 @@ struct BfsIW : SimPlanner {
             q.pop();
 
             // print debug info
-            if( debug_ ) logos_ << node->depth_ << "@" << node->path_reward_ << std::flush;
+            Logger::Continuation(Logger::Debug) << node->depth_ << "@" << node->path_reward_ << std::flush;
 
             // update node info
             assert((node->num_children_ == 0) && (node->first_child_ == nullptr));
@@ -264,13 +254,13 @@ struct BfsIW : SimPlanner {
 
             // check termination at this node
             if( node->terminal_ ) {
-                if( debug_ ) logos_ << "t" << "," << std::flush;
+                Logger::Continuation(Logger::Debug) << "t" << "," << std::flush;
                 continue;
             }
 
             // verify max repetitions of feature atoms (screen mode)
             if( node->frame_rep_ > int(max_rep_) ) {
-                if( debug_ ) logos_ << "r" << node->frame_rep_ << "," << std::flush;
+                Logger::Continuation(Logger::Debug) << "r" << node->frame_rep_ << "," << std::flush;
                 continue;
             }
 
@@ -283,14 +273,14 @@ struct BfsIW : SimPlanner {
 
                 // prune node using novelty
                 if( novelty_table[atom] <= node->depth_ ) {
-                    if( debug_ ) logos_ << "p" << "," << std::flush;
+                    Logger::Continuation(Logger::Debug) << "p" << "," << std::flush;
                     continue;
                 }
 
                 // update novelty table
                 update_novelty_table(node->depth_, node->feature_atoms_, novelty_table);
             }
-            if( debug_ ) logos_ << "+" << std::flush;
+            Logger::Continuation(Logger::Debug) << "+" << std::flush;
 
             // expand node
             if( node->frame_rep_ == 0 ) {
@@ -303,13 +293,13 @@ struct BfsIW : SimPlanner {
                 node->expand(node->action_);
             }
             assert((node->num_children_ > 0) && (node->first_child_ != nullptr));
-            if( debug_ ) logos_ << node->num_children_ << "," << std::flush;
+            Logger::Continuation(Logger::Debug) << node->num_children_ << "," << std::flush;
 
             // add children to queue
             for( Node *child = node->first_child_; child != nullptr; child = child->sibling_ )
                 q.push(child);
         }
-        if( debug_ ) logos_ << std::endl;
+        Logger::Continuation(Logger::Debug) << std::endl;
     }
 
     void add_tip_nodes_to_queue(Node *node, std::priority_queue<Node*, std::vector<Node*>, NodeComparator> &pq) const {
@@ -338,37 +328,36 @@ struct BfsIW : SimPlanner {
         random_decision_ = false;
     }
 
-    void print_stats(std::ostream &os, const Node &root, const std::map<int, std::vector<int> > &novelty_table_map) const {
-        os << Utils::red()
-           << "stats:"
-           << " #entries=[";
+    void print_stats(Logger::mode_t logger_mode, const Node &root, const std::map<int, std::vector<int> > &novelty_table_map) const {
+        logger_mode << "decision-stats:"
+                    << " #entries=[";
 
         for( std::map<int, std::vector<int> >::const_iterator it = novelty_table_map.begin(); it != novelty_table_map.end(); ++it )
-            os << it->first << ":" << num_entries(it->second) << "/" << it->second.size() << ",";
+            Logger::Continuation(logger_mode) << it->first << ":" << num_entries(it->second) << "/" << it->second.size() << ",";
 
-        os << "]";
-
-        os << " #nodes=" << root.num_nodes()
-           << " #tips=" << root.num_tip_nodes()
-           << " height=[" << root.height_ << ":";
+        Logger::Continuation(logger_mode)
+          << "]"
+          << " #nodes=" << root.num_nodes()
+          << " #tips=" << root.num_tip_nodes()
+          << " height=[" << root.height_ << ":";
 
         for( Node *child = root.first_child_; child != nullptr; child = child->sibling_ )
-            os << child->height_ << ",";
+            Logger::Continuation(logger_mode) << child->height_ << ",";
 
-        os << "]";
-
-        os << " #expansions=" << num_expansions_
-           << " #sim=" << simulator_calls_
-           << " total-time=" << total_time_
-           << " simulator-time=" << sim_time_
-           << " reset-time=" << sim_reset_time_
-           << " get/set-state-time=" << sim_get_set_state_time_
-           << " expand-time=" << expand_time_
-           << " update-novelty-time=" << update_novelty_time_
-           << " get-atoms-calls=" << get_atoms_calls_
-           << " get-atoms-time=" << get_atoms_time_
-           << " novel-atom-time=" << novel_atom_time_
-           << Utils::normal() << std::endl;
+        Logger::Continuation(logger_mode)
+          << "]"
+          << " #expansions=" << num_expansions_
+          << " #sim=" << simulator_calls_
+          << " total-time=" << total_time_
+          << " simulator-time=" << sim_time_
+          << " reset-time=" << sim_reset_time_
+          << " get/set-state-time=" << sim_get_set_state_time_
+          << " expand-time=" << expand_time_
+          << " update-novelty-time=" << update_novelty_time_
+          << " get-atoms-calls=" << get_atoms_calls_
+          << " get-atoms-time=" << get_atoms_time_
+          << " novel-atom-time=" << novel_atom_time_
+          << std::endl;
     }
 };
 

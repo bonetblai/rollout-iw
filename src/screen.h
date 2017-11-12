@@ -10,12 +10,11 @@
 #include <vector>
 #include <ale_interface.hpp>
 
+#include "logger.h"
 #include "utils.h"
 
 struct MyALEScreen {
     const int type_; // type=0: no features, type=1: basic features, type=2: basic + B-PROS, type=3: basic + B-PROS + B-PROT
-    const bool debug_;
-    std::ostream &logos_;
     const ALEScreen &screen_;
     std::vector<bool> basic_features_bitmap_;
     std::vector<bool> bpros_features_bitmap_;
@@ -36,26 +35,21 @@ struct MyALEScreen {
     static size_t num_background_pixels_;
 
     MyALEScreen(ALEInterface &ale,
-                std::ostream &logos,
                 int type,
                 std::vector<int> *screen_state_atoms = nullptr,
-                const std::vector<int> *prev_screen_state_atoms = nullptr,
-                bool debug = false)
+                const std::vector<int> *prev_screen_state_atoms = nullptr)
       : type_(type),
-        debug_(debug),
-        logos_(logos),
         screen_(ale.getScreen()) {
 
-        if( debug_ ) {
-            logos_ << "screen:"
-                   << " type=" << type_
-                   << ", height=" << screen_.height() << " (expecting " << height_ << ")"
-                   << ", width=" << screen_.width() << " (expecting " << width_ << ")"
-                   << std::endl;
-        }
-        assert((width_ == screen_.width()) && (height_ == screen_.height()));
+        Logger::DebugMode(-100)
+          << "screen:"
+          << " type=" << type_
+          << ", height=" << screen_.height() << " (expecting " << 210 << ")" // for some reason static const int height_ not working here...
+          << ", width=" << screen_.width() << " (expecting " << 160 << ")" // for some reason static const int width_ not working here...
+          << std::endl;
 
-        compute_features(type, screen_state_atoms, prev_screen_state_atoms, debug);
+        assert((width_ == screen_.width()) && (height_ == screen_.height()));
+        compute_features(type, screen_state_atoms, prev_screen_state_atoms);
     }
 
     static Action random_action() {
@@ -78,15 +72,15 @@ struct MyALEScreen {
         background_ = std::vector<pixel_t>(width_ * height_, 0);
         num_background_pixels_ = width_ * height_;
     }
-    static void compute_background_image(ALEInterface &ale, std::ostream &logos, size_t num_frames, bool debug = false) {
+    static void compute_background_image(ALEInterface &ale, size_t num_frames) {
         assert((width_ == ale.getScreen().width()) && (height_ == ale.getScreen().height()));
         float start_time = Utils::read_time_in_seconds();
-        if( debug ) {
-            logos << Utils::green()
-                  << "screen: computing background image (#frames=" << num_frames << ") ... "
-                  << Utils::normal()
-                  << std::flush;
-        }
+
+        Logger::Debug
+          << Logger::green()
+          << "screen: computing background image (#frames=" << num_frames << ") ... "
+          << Logger::normal()
+          << std::flush;
 
         minimal_actions_ = ale.getMinimalActionSet();
         minimal_actions_size_ = minimal_actions_.size();
@@ -121,32 +115,33 @@ struct MyALEScreen {
         }
 
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
-        if( debug ) {
-            logos << Utils::green()
-                  << "done in " << elapsed_time << " seconds"
-                  << std::endl
-                  << "background: #pixels=" << num_background_pixels_ << "/" << width_ * height_
-                  << Utils::normal()
-                  << std::endl;
-        }
+
+        Logger::DebugMode(0, true)
+          << Logger::green()
+          << "done in " << elapsed_time << " seconds"
+          << Logger::normal()
+          << std::endl;
+        Logger::Debug 
+          << Logger::green()
+          << "background: #pixels=" << num_background_pixels_ << "/" << width_ * height_
+          << Logger::normal()
+          << std::endl;
     }
-    static void ammend_background_image(size_t r, size_t c, bool debug = false, std::ostream *logos = nullptr) {
+    static void ammend_background_image(size_t r, size_t c) {
         assert(background_[r * width_ + c] > 0);
         assert(num_background_pixels_ > 0);
         background_[r * width_ + c] = 0;
         --num_background_pixels_;
-        if( debug && (logos != nullptr) ) {
-            *logos << Utils::blue() << "background:" << Utils::normal()
-                   << " #pixels=" << num_background_pixels_ << "/" << width_ * height_
-                   << std::endl;
-        }
+        Logger::DebugMode(-100)
+          << "background: #pixels=" << num_background_pixels_ << "/" << width_ * height_
+          << std::endl;
     }
 
     const ALEScreen& get_screen() const {
         return screen_;
     }
 
-    void compute_features(int type, std::vector<int> *screen_state_atoms, const std::vector<int> *prev_screen_state_atoms, bool debug = false) {
+    void compute_features(int type, std::vector<int> *screen_state_atoms, const std::vector<int> *prev_screen_state_atoms) {
         int num_basic_features = 0;
         int num_bpros_features = 0;
         int num_bprot_features = 0;
@@ -168,14 +163,13 @@ struct MyALEScreen {
             }
         }
 
-        if( debug_ ) {
-            logos_ << "screen:"
-                   << " #features=" << screen_state_atoms->size()
-                   << ", #basic=" << num_basic_features
-                   << ", #bpros=" << num_bpros_features
-                   << ", #bprot=" << num_bprot_features
-                   << std::endl;
-        }
+        Logger::DebugMode(-100)
+          << "screen:"
+          << " #features=" << screen_state_atoms->size()
+          << ", #basic=" << num_basic_features
+          << ", #bpros=" << num_bpros_features
+          << ", #bprot=" << num_bprot_features
+          << std::endl;
     }
 
     void compute_basic_features(size_t c, size_t r, std::vector<int> *screen_state_atoms = 0) {
@@ -188,7 +182,7 @@ struct MyALEScreen {
 
                 // subtract/ammend background pixel
                 if( p < b )
-                    ammend_background_image(15*r + ir, 10*c + ic, false, &logos_);
+                    ammend_background_image(15*r + ir, 10*c + ic);
                 else
                     p -= b;
 

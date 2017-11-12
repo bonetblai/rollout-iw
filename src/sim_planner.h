@@ -13,6 +13,7 @@
 #include "planner.h"
 #include "node.h"
 #include "screen.h"
+#include "logger.h"
 #include "utils.h"
 
 struct SimPlanner : Planner {
@@ -22,7 +23,6 @@ struct SimPlanner : Planner {
     const bool use_minimal_action_set_;
     const int simulator_budget_;
     const size_t num_tracked_atoms_;
-    const bool debug_;
 
     mutable size_t simulator_calls_;
     mutable float sim_time_;
@@ -37,20 +37,17 @@ struct SimPlanner : Planner {
     ALEState initial_sim_state_;
     ActionVect action_set_;
 
-    SimPlanner(std::ostream &logos,
-               ALEInterface &sim,
+    SimPlanner(ALEInterface &sim,
                size_t frameskip,
                bool use_minimal_action_set,
                int simulator_budget,
-               size_t num_tracked_atoms,
-               bool debug = false)
-      : Planner(logos),
+               size_t num_tracked_atoms)
+      : Planner(),
         sim_(sim),
         frameskip_(frameskip),
         use_minimal_action_set_(use_minimal_action_set),
         simulator_budget_(simulator_budget),
-        num_tracked_atoms_(num_tracked_atoms),
-        debug_(debug) {
+        num_tracked_atoms_(num_tracked_atoms) {
         //static_assert(std::numeric_limits<float>::is_iec559, "IEEE 754 required");
         assert(sim_.getInt("frame_skip") == int(frameskip_));
         if( use_minimal_action_set_ )
@@ -204,10 +201,10 @@ struct SimPlanner : Planner {
         assert(node->feature_atoms_.empty());
         float start_time = Utils::read_time_in_seconds();
         if( (screen_features < 3) || (node->parent_ == nullptr) ) {
-            MyALEScreen screen(sim_, logos_, screen_features, &node->feature_atoms_);
+            MyALEScreen screen(sim_, screen_features, &node->feature_atoms_);
         } else {
             assert((screen_features == 3) && (node->parent_ != nullptr));
-            MyALEScreen screen(sim_, logos_, screen_features, &node->feature_atoms_, &node->parent_->feature_atoms_);
+            MyALEScreen screen(sim_, screen_features, &node->feature_atoms_, &node->parent_->feature_atoms_);
         }
         get_atoms_time_ += Utils::read_time_in_seconds() - start_time;
     }
@@ -296,11 +293,11 @@ struct SimPlanner : Planner {
         }
     }
 
-    void print_prefix(std::ostream &os, const std::vector<Action> &prefix) const {
-        os << "[";
+    void print_prefix(Logger::mode_t logger_mode, const std::vector<Action> &prefix) const {
+        Logger::Continuation(logger_mode) << "[";
         for( size_t k = 0; k < prefix.size(); ++k )
-            os << prefix[k] << ",";
-        os << "]" << std::flush;
+            Logger::Continuation(logger_mode) << prefix[k] << ",";
+        Logger::Continuation(logger_mode) << "]" << std::flush;
     }
 
     // generate states along given branch

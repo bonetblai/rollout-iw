@@ -11,6 +11,7 @@
 #include "planner.h"
 #include "bfsIW.h"
 #include "rolloutIW.h"
+#include "logger.h"
 #include "utils.h"
 
 #ifdef __USE_SDL
@@ -51,7 +52,6 @@ void reset_global_variables() {
 }
 
 void run_episode(ALEInterface &env,
-                 ostream &logos,
                  const Planner &planner,
                  int initial_noops,
                  int lookahead_caching,
@@ -107,7 +107,7 @@ void run_episode(ALEInterface &env,
             g_acc_expanded += planner.expanded();
 
             if( branch.empty() ) {
-                logos << Utils::error() << "no more available actions!" << endl;
+                Logger::Error << "no more available actions!" << endl;
                 break;
             }
 
@@ -126,10 +126,10 @@ void run_episode(ALEInterface &env,
                     branch.pop_back();
             }
 
-            logos << "executable-prefix: len=" << branch.size() << ", actions=[";
+            Logger::Info << "executable-prefix: len=" << branch.size() << ", actions=[";
             for( size_t j = 0; j < branch.size(); ++j )
-                logos << branch[j] << ",";
-            logos << "]" << endl;
+                Logger::Continuation(Logger::Info) << branch[j] << ",";
+            Logger::Continuation(Logger::Info) << "]" << endl;
         }
 
         // select action to apply
@@ -201,7 +201,15 @@ void usage(ostream &os, const po::options_description &opt_desc) {
 }
 
 int main(int argc, char **argv) {
+    // setup logger
+    ostream *default_log_file = &cout;
+    Logger::set_output_stream(*default_log_file);
+    Logger::set_mode(Logger::Info);
+    Logger::set_use_color(true);
+    Logger::set_debug_threshold(0);
+
     // rom and log files
+    string opt_logger_mode;
     string opt_log_file;
     string opt_rom;
 
@@ -210,8 +218,8 @@ int main(int argc, char **argv) {
 
     // general options
     int opt_random_seed;
-    bool opt_debug = false;
-    int opt_ale_logger_mode;
+    int opt_debug_threshold;
+    string opt_ale_logger_mode;
     int opt_frameskip;
     bool opt_display = true;
     bool opt_sound = false;
@@ -257,14 +265,15 @@ int main(int argc, char **argv) {
     po::options_description opt_desc("Allowed options");
     opt_desc.add_options()
       // rom and log files
-      ("log-file", po::value<string>(&opt_log_file), "Set path to log file (default is \"\" for no logging)")
+      ("logger-mode", po::value<string>(&opt_logger_mode)->default_value("info"), "Change logger mode to 'debug', 'info', 'warning', 'error', 'stats', or 'silent' (default is 'info')")
+      ("log-file", po::value<string>(&opt_log_file), "Set path to log file (default is \"\" for std::cout)")
       ("rom", po::value<string>(&opt_rom), "Set Atari ROM")
 
       // general options
       ("help", "Help message")
       ("seed", po::value<int>(&opt_random_seed)->default_value(0), "Set random seed (default is 0)")
-      ("debug", "Turn on debug (default is off)")
-      ("ale-logger-mode", po::value<int>(&opt_ale_logger_mode)->default_value(2), "Change ALE logger mode: 0=Info, 1=Warning, 2=Error, 3=Silent (default is 2)")
+      ("debug-threshold", po::value<int>(&opt_debug_threshold)->default_value(0), "Set threshold for debug mode (default is 0)")
+      ("ale-logger-mode", po::value<string>(&opt_ale_logger_mode)->default_value("error"), "Change ALE logger mode to 'info', 'warning', 'error', or 'silent' (default is 'error')")
       ("frameskip", po::value<int>(&opt_frameskip)->default_value(15), "Set frame skip rate (default is 15)")
       ("nodisplay", "Turn off display (default is display)")
       ("sound", "Turn on sound (default is no sound)")
@@ -297,7 +306,7 @@ int main(int argc, char **argv) {
       ("random-actions", "Use random action when there are no rewards in look-ahead tree (default is off)")
       ("max-rep", po::value<int>(&opt_max_rep)->default_value(30), "Set max rep(etition) of screen features during lookahead (default is 30)")
       ("discount", po::value<float>(&opt_discount)->default_value(0.95), "Set discount factor for lookahead (default is 0.95)")
-      ("alpha", po::value<float>(&opt_alpha)->default_value(1.0), "Set alpha value for lookahead (default is 1.0)")
+      ("alpha", po::value<float>(&opt_alpha)->default_value(50000.0), "Set alpha value for lookahead (default is 50k)")
       ("use-alpha-to-update-reward-for-death", "Assign a big negative reward, depending on alpha's value, for deaths (default is off)")
       ("nodes-threshold", po::value<int>(&opt_nodes_threshold)->default_value(50000), "Set threshold in #nodes for expanding look-ahead tree (default is 50k)")
 
@@ -317,12 +326,11 @@ int main(int argc, char **argv) {
         po::store(po::command_line_parser(argc, argv).options(opt_desc).positional(opt_pos).run(), opt_varmap);
         po::notify(opt_varmap);
     } catch( po::error &e ) {
-        cout << Utils::error() << e.what() << endl;
+        Logger::Error << e.what() << endl;
         exit(1);
     }
 
     // set values for boolean options
-    opt_debug = opt_varmap.count("debug");
     opt_display = !opt_varmap.count("nodisplay");
     opt_sound = opt_varmap.count("sound");
     opt_use_minimal_action_set = opt_varmap.count("use-minimal-action-set");
@@ -332,9 +340,32 @@ int main(int argc, char **argv) {
     opt_use_alpha_to_update_reward_for_death = opt_varmap.count("use-alpha-to-update-reward-for-death");
     opt_break_ties_using_rewards = opt_varmap.count("break-ties-using-rewards");
 
-    ostream *logos = &cout;
-    if( opt_varmap.count("log-file") )
-        logos = new ofstream(opt_log_file);
+    // set logger mode and log mode
+    Logger::mode_t logger_mode = Logger::Silent;
+    if( opt_logger_mode == "debug" ) {
+        logger_mode = Logger::Debug;
+    } else if( opt_logger_mode == "info" ) {
+        logger_mode = Logger::Info;
+    } else if( opt_logger_mode == "warning" ) {
+        logger_mode = Logger::Warning;
+    } else if( opt_logger_mode == "error" ) {
+        logger_mode = Logger::Error;
+    } else if( opt_logger_mode == "stats" ) {
+        logger_mode = Logger::Stats;
+    } else if( opt_logger_mode == "silent" ) {
+        logger_mode = Logger::Silent;
+    } else {
+        Logger::Error << "invalid logger mode '" << opt_logger_mode << "'" << endl;
+        exit(-1);
+    }
+    Logger::set_mode(logger_mode);
+    Logger::set_debug_threshold(opt_debug_threshold);
+
+    if( opt_varmap.count("log-file") && (opt_log_file != "") ) {
+        ostream *logger_output_stream = new ofstream(opt_log_file);
+        Logger::set_output_stream(*logger_output_stream);
+        Logger::set_use_color(false);
+    }
 
     // check whether there is something to be done
     if( opt_varmap.count("help") || (opt_rom == "") ) {
@@ -343,19 +374,25 @@ int main(int argc, char **argv) {
     }
 
     // print command-line options
-    print_options(*logos, opt_varmap);
+    print_options(Logger::output_stream(), opt_varmap);
 
     // set random seed for lrand48() and drand48()
     srand48(opt_random_seed);
 
     // set logger mode for ALE
     ale::Logger::mode ale_logger_mode = ale::Logger::Silent;
-    if( opt_ale_logger_mode == 0 )
+    if( opt_ale_logger_mode == "info" ) {
         ale_logger_mode = ale::Logger::Info;
-    else if( opt_ale_logger_mode == 1 )
+    } else if( opt_ale_logger_mode == "warning" ) {
         ale_logger_mode = ale::Logger::Warning;
-    else if( opt_ale_logger_mode == 2 )
+    } else if( opt_ale_logger_mode == "error" ) {
         ale_logger_mode = ale::Logger::Error;
+    } else if( opt_ale_logger_mode == "silent" ) {
+        ale_logger_mode = ale::Logger::Silent;
+    } else {
+        Logger::Error << "invalid ALE logger mode '" << opt_ale_logger_mode << "'" << endl;
+        exit(-1);
+    }
 
     // create ALEs
     ALEInterface env(ale_logger_mode), sim(ale_logger_mode);
@@ -388,7 +425,7 @@ int main(int argc, char **argv) {
     // initialize static members for screen features
     if( opt_screen_features > 0 ) {
         MyALEScreen::create_background_image();
-        MyALEScreen::compute_background_image(sim, *logos, opt_frames_for_background_image, true);
+        MyALEScreen::compute_background_image(sim, opt_frames_for_background_image);
     }
 
     // construct planner
@@ -396,7 +433,7 @@ int main(int argc, char **argv) {
     if( opt_fixed_action_sequence != "none" ) {
         vector<Action> actions;
         parse_action_sequence(opt_fixed_action_sequence, actions);
-        planner = new FixedPlanner(*logos, actions);
+        planner = new FixedPlanner(actions);
     } else {
         size_t num_tracked_atoms = 0;
         if( opt_screen_features == 0 ) { // RAM mode
@@ -408,8 +445,7 @@ int main(int argc, char **argv) {
         }
 
         if( opt_planner_str == "rollout" ) {
-            planner = new RolloutIW(*logos,
-                                    sim,
+            planner = new RolloutIW(sim,
                                     opt_frameskip,
                                     opt_use_minimal_action_set,
                                     num_tracked_atoms,
@@ -423,11 +459,9 @@ int main(int argc, char **argv) {
                                     opt_alpha,
                                     opt_use_alpha_to_update_reward_for_death,
                                     opt_nodes_threshold,
-                                    opt_max_depth,
-                                    opt_debug);
+                                    opt_max_depth);
         } else if( opt_planner_str == "bfs" ) {
-            planner = new BfsIW(*logos,
-                                sim,
+            planner = new BfsIW(sim,
                                 opt_frameskip,
                                 opt_use_minimal_action_set,
                                 num_tracked_atoms,
@@ -441,15 +475,14 @@ int main(int argc, char **argv) {
                                 opt_alpha,
                                 opt_use_alpha_to_update_reward_for_death,
                                 opt_nodes_threshold,
-                                opt_break_ties_using_rewards,
-                                opt_debug);
+                                opt_break_ties_using_rewards);
         } else {
-            *logos << Utils::error() << " inexistent planner '" << opt_planner_str << "'" << endl;
+            Logger::Error << "inexistent planner '" << opt_planner_str << "'" << endl;
             exit(1);
         }
     }
     assert(planner != nullptr);
-    *logos << "planner=" << planner->name() << endl;
+    Logger::Info << "planner=" << planner->name() << endl;
 
     // set number of initial noops
     assert(opt_initial_random_noops > 0);
@@ -459,64 +492,64 @@ int main(int argc, char **argv) {
     for( int k = 0; k < opt_episodes; ++k ) {
         vector<Action> prefix;
         float start_time = Utils::read_time_in_seconds();
-        run_episode(env, *logos, *planner, initial_noops, opt_lookahead_caching, opt_prefix_length_to_execute, opt_execute_single_action, opt_frameskip, opt_max_execution_length_in_frames, prefix);
+        run_episode(env, *planner, initial_noops, opt_lookahead_caching, opt_prefix_length_to_execute, opt_execute_single_action, opt_frameskip, opt_max_execution_length_in_frames, prefix);
         float elapsed_time = Utils::read_time_in_seconds() - start_time;
-        *logos << "episode-stats:"
-               // rom and log files
-               << " rom=" << opt_rom
-               // planner
-               << " planner=" << opt_planner_str
-               // general options
-               << " debug=" << opt_debug
-               << " frameskip=" << opt_frameskip
-               << " seed=" << opt_random_seed
-               << " use-minimal-action-set=" << opt_use_minimal_action_set
-               // episodes and execution length
-               << " episodes=" << opt_episodes
-               << " max-execution-length=" << opt_max_execution_length_in_frames
-               // simulate previous execution
-               << " fixed-action-sequence=\"" << opt_fixed_action_sequence << "\""
-               // features
-               << " features=" << opt_screen_features
-               << " frames-background-image=" << opt_frames_for_background_image
-               // online execution
-               << " initial-noops=" << opt_initial_random_noops
-               << " execute-single-action=" << opt_execute_single_action
-               << " caching=" << opt_lookahead_caching
-               << " prefix-length-to-execute=" << opt_prefix_length_to_execute
-               << " simulator-budget=" << opt_simulator_budget
-               << " time-budget=" << opt_time_budget
-               // common options for planners
-               << " alpha=" << opt_alpha
-               << " discount=" << opt_discount
-               << " max-rep=" << opt_max_rep
-               << " nodes-threshold=" << opt_nodes_threshold
-               << " novelty-subtables=" << opt_novelty_subtables
-               << " random-actions=" << opt_random_actions
-               << " use-alpha-to-update-reward-for-death=" << opt_use_alpha_to_update_reward_for_death
-               // rollout planner
-               << " max-depth=" << opt_max_depth
-               // bfs planner
-               << " break-ties-using-rewards=" << opt_break_ties_using_rewards
-               // data
-               << " score=" << g_acc_reward
-               << " frames=" << g_acc_frames
-               << " decisions=" << g_acc_decisions
-               << " simulator-calls=" << g_acc_simulator_calls
-               << " max-simulator-calls=" << g_max_simulator_calls
-               << " total-time=" << elapsed_time
-               << " simulator-time=" << g_acc_simulator_time
-               << " sum-expanded=" << g_acc_expanded
-               << " sum-height=" << g_acc_height
-               << " random-decisions=" << g_acc_random_decisions
-               << endl;
+        Logger::Stats
+          << "episode-stats:"
+          // rom and log files
+          << " rom=" << opt_rom
+          // planner
+          << " planner=" << opt_planner_str
+          // general options
+          << " debug-threshold=" << opt_debug_threshold
+          << " frameskip=" << opt_frameskip
+          << " seed=" << opt_random_seed
+          << " use-minimal-action-set=" << opt_use_minimal_action_set
+          // episodes and execution length
+          << " episodes=" << opt_episodes
+          << " max-execution-length=" << opt_max_execution_length_in_frames
+          // simulate previous execution
+          << " fixed-action-sequence=\"" << opt_fixed_action_sequence << "\""
+          // features
+          << " features=" << opt_screen_features
+          << " frames-background-image=" << opt_frames_for_background_image
+          // online execution
+          << " initial-noops=" << opt_initial_random_noops
+          << " execute-single-action=" << opt_execute_single_action
+          << " caching=" << opt_lookahead_caching
+          << " prefix-length-to-execute=" << opt_prefix_length_to_execute
+          << " simulator-budget=" << opt_simulator_budget
+          << " time-budget=" << opt_time_budget
+          // common options for planners
+          << " alpha=" << opt_alpha
+          << " discount=" << opt_discount
+          << " max-rep=" << opt_max_rep
+          << " nodes-threshold=" << opt_nodes_threshold
+          << " novelty-subtables=" << opt_novelty_subtables
+          << " random-actions=" << opt_random_actions
+          << " use-alpha-to-update-reward-for-death=" << opt_use_alpha_to_update_reward_for_death
+          // rollout planner
+          << " max-depth=" << opt_max_depth
+          // bfs planner
+          << " break-ties-using-rewards=" << opt_break_ties_using_rewards
+          // data
+          << " score=" << g_acc_reward
+          << " frames=" << g_acc_frames
+          << " decisions=" << g_acc_decisions
+          << " simulator-calls=" << g_acc_simulator_calls
+          << " max-simulator-calls=" << g_max_simulator_calls
+          << " total-time=" << elapsed_time
+          << " simulator-time=" << g_acc_simulator_time
+          << " sum-expanded=" << g_acc_expanded
+          << " sum-height=" << g_acc_height
+          << " random-decisions=" << g_acc_random_decisions
+          << endl;
     }
 
     // cleanup
     delete planner;
-    if( dynamic_cast<ofstream*>(logos) != nullptr ) {
-        static_cast<ofstream*>(logos)->close();
-        delete logos;
+    if( &Logger::output_stream() != default_log_file ) {
+        static_cast<ofstream*>(&Logger::output_stream())->close();
     }
 
     return 0;

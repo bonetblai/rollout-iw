@@ -32,7 +32,7 @@ rom=`echo $record | awk '{print $8;}'`
 rom_str=${rom//\//_}
 
 output_path=$IW_ROOT/sge-results/$rdir/$rom_str
-output_file=$output_path/output.riw.alg=${algorithm}.fs=${frameskip}.b=${time_budget}.f=${features}.ns=${novelty_subtables}.rom=${rom_str}.task=${SGE_TASK_ID}.txt
+output_file=$output_path/output.riw.alg=${algorithm}.fs=${frameskip}.b=${time_budget}.f=${features}.ns=${novelty_subtables}.d=${discount}.rom=${rom_str}.task=${SGE_TASK_ID}.txt
 
 
 mkdir -p $output_path

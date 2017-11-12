@@ -141,6 +141,7 @@ void run_episode(ALEInterface &env,
         prefix.push_back(action);
         g_acc_reward += last_reward;
         g_acc_frames += frameskip;
+        Logger::Stats << "step-stats: acc-reward=" << g_acc_reward << ", acc-frames=" << g_acc_frames << endl;
 
         // advance/destroy lookhead tree
         if( node != nullptr ) {

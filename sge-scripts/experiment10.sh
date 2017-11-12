@@ -5,9 +5,10 @@ frameskip=$2
 time_budget=$3
 features=$4
 novelty_subtables=$5
-raw_options=$6
-rom=$7
-log_file=$8
+discount=$6
+raw_options=$7
+rom=$8
+log_file=$9
 
 export IW_ROOT=$HOME/software/github/rollout-iw
 export ALE_PATH=$HOME/software/github/Arcade-Learning-Environment
@@ -20,6 +21,7 @@ $IW_ROOT/src/rom_planner \
   --seed $RANDOM \
   --lookahead-caching 1 \
   --alpha 50000 \
+  --discount $discount \
   --use-alpha-to-update-reward-for-death \
   --break-ties-using-rewards \
   --planner $algorithm \

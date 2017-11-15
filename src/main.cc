@@ -287,7 +287,7 @@ int main(int argc, char **argv) {
       ("max-execution-length", po::value<int>(&opt_max_execution_length_in_frames)->default_value(18000), "Set max number of frames in single execution (default is 18k frames)")
 
       // simulate previous execution
-      ("fixed-action-sequence", po::value<string>(&opt_fixed_action_sequence)->default_value("none"), "Pass fixed action sequence that provides actions (default is \"none\" for no such sequence")
+      ("fixed-action-sequence", po::value<string>(&opt_fixed_action_sequence)->default_value("none"), "Pass fixed action sequence that provides actions (default is \"none\" for no such sequence)")
 
       // features
       ("features", po::value<int>(&opt_screen_features)->default_value(3), "Set feature set: 0=RAM, 1=basic, 2=basic+B-PROS, 3=basic+B-PROS+B-PROT (default is 3)")
@@ -298,7 +298,7 @@ int main(int argc, char **argv) {
       ("lookahead-caching", po::value<int>(&opt_lookahead_caching)->default_value(2), "Set lookahead caching: 0=none, 1=partial, 2=full (default is 2)")
       ("simulator-budget", po::value<int>(&opt_simulator_budget)->default_value(150000), "Set budget for #calls to simulator for online decision making (default is 150k)")
       ("time-budget", po::value<float>(&opt_time_budget)->default_value(numeric_limits<float>::infinity()), "Set time budget for online decision making (default is infinite)")
-      ("execute-single-action", "Execute only one action from best branch in lookahead (default is to execute prefix until first reward")
+      ("execute-single-action", "Execute only one action from best branch in lookahead (default is to execute prefix until first reward)")
       ("prefix-length-to-execute", po::value<float>(&opt_prefix_length_to_execute)->default_value(0.0), "Set \% of prefix to execute (default is 0 = execute until positive reward)")
 
       // planners
@@ -396,7 +396,7 @@ int main(int argc, char **argv) {
     }
 
     // create ALEs
-    ALEInterface env(ale_logger_mode), sim(ale_logger_mode);
+    ALEInterface env(ale_logger_mode), sim(ale::Logger::Silent);
 
     // get/set desired settings
     env.setInt("frame_skip", opt_frameskip);
@@ -417,6 +417,8 @@ int main(int argc, char **argv) {
             env.setString("record_sound_filename", (full_rec_dir + "/" + opt_rec_sound_filename).c_str());
         fs::create_directories(full_rec_dir);
     }
+    sim.setBool("display_screen", false);
+    sim.setBool("sound", false);
 #endif
 
     // Load the ROM file. (Also resets the system for new settings to take effect.)

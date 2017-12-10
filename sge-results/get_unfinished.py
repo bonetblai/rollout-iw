@@ -20,7 +20,10 @@ filename_suffix = sys.argv[2]
 # extract last line in file
 def get_last_line(filename, max_line_length = 2048):
     fp = file(filename, "rb")
-    fp.seek(-max_line_length - 1, 2) # 2 means "from the end of the file"
+    try:
+        fp.seek(-max_line_length - 1, 2) # 2 means "from the end of the file"
+    except IOError:
+        return ""
     return fp.readlines()[-1].strip('\n')
 
 # recurse in current dir processing files whose name begin with given prefix

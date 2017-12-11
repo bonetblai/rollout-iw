@@ -8,14 +8,14 @@ specify_decimal <- function(x, k) trimws(format(round(x, k), nsmall=k))
 
 # read .csv tables
 d10 = read.csv('data10.csv', header=T)
-d11 = read.csv('data11.csv', header=T)
+#d11 = read.csv('data11.csv', header=T)
 d11n = read.csv('data11n.csv', header=T)
 
 
 # patch rom names
 levels(d10$rom) = sub('jamesbond', 'james bond', gsub('_', ' ', levels(d10$rom)))
-levels(d11$rom) = sub('jamesbond', 'james bond', gsub('_', ' ', levels(d11$rom)))
-levels(d11n$rom) = sub('jamesbond', 'james bond', gsub('_', ' ', levels(d11$rom)))
+#levels(d11$rom) = sub('jamesbond', 'james bond', gsub('_', ' ', levels(d11$rom)))
+levels(d11n$rom) = sub('jamesbond', 'james bond', gsub('_', ' ', levels(d11n$rom)))
 
 
 # add columns:
@@ -31,11 +31,11 @@ d10$perc.random.decisions = d10$random.decisions / d10$decisions
 d10$avg.expanded = d10$sum.expanded / d10$decisions
 d10$avg.simulator.calls = d10$simulator.calls / d10$decisions
 
-d11$caching = rep(1, dim(d11)[1])
-d11$mod = paste(d11$novelty.subtables, d11$caching, d11$random.actions, sep='')
-d11$perc.random.decisions = d11$random.decisions / d11$decisions
-d11$avg.expanded = d11$sum.expanded / d11$decisions
-d11$avg.simulator.calls = d11$simulator.calls / d11$decisions
+#d11$caching = rep(1, dim(d11)[1])
+#d11$mod = paste(d11$novelty.subtables, d11$caching, d11$random.actions, sep='')
+#d11$perc.random.decisions = d11$random.decisions / d11$decisions
+#d11$avg.expanded = d11$sum.expanded / d11$decisions
+#d11$avg.simulator.calls = d11$simulator.calls / d11$decisions
 
 d11n$caching = rep(1, dim(d11n)[1])
 d11n$mod = paste(d11n$novelty.subtables, d11n$caching, d11n$random.actions, sep='')

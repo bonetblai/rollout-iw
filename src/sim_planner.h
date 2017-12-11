@@ -151,6 +151,8 @@ struct SimPlanner : Planner {
         assert(node->parent_->state_ != nullptr);
         set_state(sim_, *node->parent_->state_);
         float reward = call_simulator(sim_, node->action_);
+        assert(reward != std::numeric_limits<float>::infinity());
+        assert(reward != -std::numeric_limits<float>::infinity());
         node->state_ = new ALEState;
         get_state(sim_, *node->state_);
         if( node->is_info_valid_ == 0 ) {
@@ -210,19 +212,16 @@ struct SimPlanner : Planner {
     }
 
     // novelty tables
-    int get_index_for_novelty_table(const Node *node, bool use_novelty_subtables) const {
-        if( !use_novelty_subtables ) {
+    int logscore(float path_reward) const {
+        if( path_reward <= 0 ) {
             return 0;
         } else {
-            assert(node->path_reward_ != std::numeric_limits<float>::infinity());
-            if( node->path_reward_ <= 0 ) {
-                return 0;
-            } else {
-                int logr = int(floorf(log2f(node->path_reward_)));
-                assert((logr != 0) || (node->path_reward_ >= 1));
-                return node->path_reward_ < 1 ? logr : 1 + logr;
-            }
+            int logr = int(floorf(log2f(path_reward)));
+            return path_reward < 1 ? logr : 1 + logr;
         }
+    }
+    int get_index_for_novelty_table(const Node *node, bool use_novelty_subtables) const {
+        return !use_novelty_subtables ? 0 : logscore(node->path_reward_);
     }
 
     std::vector<int>& get_novelty_table(const Node *node, std::map<int, std::vector<int> > &novelty_table_map, bool use_novelty_subtables) const {

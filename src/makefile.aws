@@ -33,5 +33,5 @@ logger.o:	logger.h logger.cc
 		$(CXX) $(FLAGS) logger.cc -c -Wall -O3
 
 clean:
-		rm -rf *.o *~ $(FILE)
+		rm -rf *.o *~ $(FILE) logger.o
 

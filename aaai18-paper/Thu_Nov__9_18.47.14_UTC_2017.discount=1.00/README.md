@@ -1,7 +1,4 @@
-### Data for AAAI-18 paper: 
-
-### Planning with Pixels in (Almost) Real Time
-### B. Bonet, W. Bandres, H. Geffner
+### Data for AAAI-18 paper: Planning with Pixels in (Almost) Real Time
 
 
 Raw-data files:

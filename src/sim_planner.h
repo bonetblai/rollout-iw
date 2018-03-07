@@ -211,7 +211,10 @@ struct SimPlanner : Planner {
         get_atoms_time_ += Utils::read_time_in_seconds() - start_time;
     }
 
-    // novelty tables
+    // novelty tables: a (simple) novelty table maps feature indices to best depth at which
+    // features have been seen. Best depth is initialized to max.int. Novelty table associated
+    // to node is a unique simple table if subtables is disabled. Otherwise, there is one table
+    // for each different logscore. The table for a node is the table for its logscore.
     int logscore(float path_reward) const {
         if( path_reward <= 0 ) {
             return 0;

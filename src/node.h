@@ -100,8 +100,10 @@ class Node {
             parent_ = nullptr;
         }
 
+        Node *sibling = nullptr;
         Node *selected = nullptr;
-        for( Node *child = first_child_; child != nullptr; child = child->sibling_ ) {
+        for( Node *child = first_child_; child != nullptr; child = sibling ) {
+            sibling = child->sibling_;
             if( child->action_ == action )
                 selected = child;
             else
@@ -366,8 +368,11 @@ class Node {
 };
 
 inline void remove_tree(Node *node) {
-    for( Node *child = node->first_child_; child != nullptr; child = child->sibling_ )
+    Node *sibling = nullptr;
+    for( Node *child = node->first_child_; child != nullptr; child = sibling ) {
+        sibling = child->sibling_;
         remove_tree(child);
+    }
     delete node;
 }
 
